@@ -1,46 +1,48 @@
-/**
- * Welcome to Cloudflare Workers! This is your first worker.
- *
- * - Run `npm run dev` in your terminal to start a development server
- * - Open a browser tab at http://localhost:8787/ to see your worker in action
- * - Run `npm run deploy` to publish your worker
- *
- * Bind resources to your worker in `wrangler.jsonc`. After adding bindings, a type definition for the
- * `Env` object can be regenerated with `npm run cf-typegen`.
- *
- * Learn more at https://developers.cloudflare.com/workers/
- */
-
+import { Update } from '@telegraf/types';
 import { callTelegram } from './telegram';
+import { commandDefinition } from './command';
 
-async function handleSetWebhook(url: string): Promise<Response> {
-	try {
-		await callTelegram('setWebhook', { url, allowed_updates: ['message', 'inline_query'] });
-		return new Response('ok');
-	} catch (e) {
-		return new Response('error, check log');
-	}
-}
-
-async function handleDeleteWebhook(): Promise<Response> {
-	try {
-		await callTelegram('deleteWebhook', {});
-		return new Response('ok');
-	} catch (e) {
-		return new Response('error, check log');
+async function handleUpdate(update: Update) {
+	if ('message' in update && 'text' in update.message) {
+		// handle command
+		for (const def of commandDefinition) {
+			if ('/' + def.command === update.message.text) {
+				await def.handler?.(update.message);
+				return;
+			}
+		}
 	}
 }
 
 export default {
 	async fetch(request, env, ctx): Promise<Response> {
 		const url = new URL(request.url);
-		if (url.pathname === '/set') {
-			return await handleSetWebhook(url.origin + (url.searchParams.get('targetPath') || '/update'));
-		} else if (url.pathname === '/delete') {
-			return await handleDeleteWebhook();
-		} else if (url.pathname === '/update') {
-			// TODO
+
+		// 路由
+		try {
+			if (url.pathname === '/set') {
+				// set webhook
+				await callTelegram('setWebhook', {
+					url: 'https://' + url.hostname + (url.searchParams.get('targetPath') || '/update'),
+					allowed_updates: ['message', 'inline_query'],
+				});
+			} else if (url.pathname === '/delete') {
+				// delete webhook
+				await callTelegram('deleteWebhook', {});
+			} else if (url.pathname === '/set-command') {
+				// set bot commands
+				await callTelegram('setMyCommands', { commands: commandDefinition });
+			} else if (url.pathname === '/update') {
+				// handle update
+				await handleUpdate(await request.json());
+			}
+			return new Response('ok');
+		} catch (e) {
+			console.error(e);
+			return new Response('error, check log');
 		}
-		return new Response(null, { status: 404, statusText: 'Not Found' });
+
+		// 404
+		return new Response('404 Not Found\nHeart from OrkWard');
 	},
 } satisfies ExportedHandler<Env>;
