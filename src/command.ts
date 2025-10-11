@@ -1,19 +1,59 @@
 import { Message } from '@telegraf/types';
 import { callTelegram } from './telegram';
+import { addRssSubscribe, removeRssSubscribe } from './rss';
 
 export const commandDefinition = [
 	{
 		command: 'ping',
 		description: '打个招呼',
-		async handler(message: Message) {
+		/** @throws */
+		async handler(message: Message.TextMessage) {
 			await callTelegram('sendMessage', {
 				chat_id: message.chat.id,
 				text: 'pong',
 			});
 		},
 	},
-	{ command: 'add', description: '订阅 RSS 源' },
-	{ command: 'remove', description: '退订 RSS 源' },
+	{
+		command: 'add',
+		description: '订阅 RSS 源',
+		async handler(message: Message.TextMessage) {
+			const [_, link] = message.text.match(/^\/add(.*)/) || [];
+			if (!link) {
+				await callTelegram('sendMessage', {
+					chat_id: message.chat.id,
+					text: 'Usage: /add [rss subscribe link]',
+				});
+				return;
+			}
+
+			await addRssSubscribe(message.chat.id, link.trim());
+			await callTelegram('sendMessage', {
+				chat_id: message.chat.id,
+				text: 'Success',
+			});
+		},
+	},
+	{
+		command: 'remove',
+		description: '退订 RSS 源',
+		async handler(message: Message.TextMessage) {
+			const [_, id] = message.text.match(/^\/remove (\d*)/) || [];
+			if (!id) {
+				await callTelegram('sendMessage', {
+					chat_id: message.chat.id,
+					text: 'Usage: /remove [subscribe id]',
+				});
+				return;
+			}
+
+			await removeRssSubscribe(parseInt(id));
+			await callTelegram('sendMessage', {
+				chat_id: message.chat.id,
+				text: 'Success',
+			});
+		},
+	},
 	{ command: 'list', description: '列出 RSS 源' },
 	{ command: 'check', description: '检查 RSS 订阅状态' },
 	{ command: 'pause', description: '暂停查询最新订阅' },

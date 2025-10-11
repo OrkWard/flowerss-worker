@@ -13,8 +13,7 @@ CREATE TABLE source (
 );
 
 CREATE TABLE user (
-  id INTEGER PRIMARY KEY,
-  identifier_id TEXT NOT NULL,
+  id INTEGER NOT NULL UNIQUE PRIMARY KEY,
   first_name TEXT NOT NULL
 );
 
@@ -33,6 +32,6 @@ CREATE TABLE subscribe (
   FOREIGN KEY (user_id) REFERENCES user (id),
   FOREIGN KEY (source_id) REFERENCES source (id)
 );
-INSERT INTO user (identifier_id, first_name) VALUES (
-  '1463278815', 'first_name'
+INSERT INTO user (id, first_name) VALUES (
+  1463278815, 'OrkWard'
 );

@@ -1,13 +1,29 @@
 import { Update } from '@telegraf/types';
 import { callTelegram } from './telegram';
 import { commandDefinition } from './command';
+import { isUserExist } from './model/user';
 
 async function handleUpdate(update: Update) {
-	if ('message' in update && 'text' in update.message) {
+	if (!('message' in update)) {
+		// ignore non-message
+		return;
+	}
+
+	// only allow user recorded
+	if (!(await isUserExist(update.message.chat.id))) {
+		return;
+	}
+
+	if ('text' in update.message) {
 		// handle command
 		for (const def of commandDefinition) {
-			if ('/' + def.command === update.message.text) {
-				await def.handler?.(update.message);
+			if (update.message.text.match(new RegExp(`^/${def.command}`))) {
+				await def.handler?.(update.message).catch((e) => {
+					callTelegram('sendMessage', {
+						chat_id: update.message.chat.id,
+						text: e.message,
+					});
+				});
 				return;
 			}
 		}
@@ -23,7 +39,7 @@ export default {
 			if (url.pathname === '/set') {
 				// set webhook
 				await callTelegram('setWebhook', {
-					url: 'https://' + url.hostname + (url.searchParams.get('targetPath') || '/update'),
+					url: 'https://' + url.hostname + '/update',
 					allowed_updates: ['message', 'inline_query'],
 				});
 			} else if (url.pathname === '/delete') {
