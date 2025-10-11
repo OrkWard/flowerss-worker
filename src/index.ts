@@ -11,8 +11,36 @@
  * Learn more at https://developers.cloudflare.com/workers/
  */
 
+import { callTelegram } from './telegram';
+
+async function handleSetWebhook(url: string): Promise<Response> {
+	try {
+		await callTelegram('setWebhook', { url, allowed_updates: ['message', 'inline_query'] });
+		return new Response('ok');
+	} catch (e) {
+		return new Response('error, check log');
+	}
+}
+
+async function handleDeleteWebhook(): Promise<Response> {
+	try {
+		await callTelegram('deleteWebhook', {});
+		return new Response('ok');
+	} catch (e) {
+		return new Response('error, check log');
+	}
+}
+
 export default {
 	async fetch(request, env, ctx): Promise<Response> {
-		return new Response('Hello World!');
+		const url = new URL(request.url);
+		if (url.pathname === '/set') {
+			return await handleSetWebhook(url.origin + (url.searchParams.get('targetPath') || '/update'));
+		} else if (url.pathname === '/delete') {
+			return await handleDeleteWebhook();
+		} else if (url.pathname === '/update') {
+			// TODO
+		}
+		return new Response(null, { status: 404, statusText: 'Not Found' });
 	},
 } satisfies ExportedHandler<Env>;
