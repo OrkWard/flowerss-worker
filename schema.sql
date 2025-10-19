@@ -5,7 +5,7 @@ DROP TABLE IF EXISTS subscribe;
 
 CREATE TABLE source (
   id INTEGER PRIMARY KEY,
-  title TEXT,
+  title TEXT NOT NULL,
   link TEXT NOT NULL,
   error_count INTEGER NOT NULL,
   create_at DATE NOT NULL,

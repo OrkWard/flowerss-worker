@@ -2,7 +2,7 @@ import { env } from 'cloudflare:workers';
 
 export interface Source {
 	id: number;
-	title: string | null;
+	title: string;
 	link: string;
 	error_count: number;
 	create_at: number;

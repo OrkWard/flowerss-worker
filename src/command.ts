@@ -1,6 +1,8 @@
 import { Message } from '@telegraf/types';
 import { callTelegram } from './telegram';
 import { addRssSubscribe, removeRssSubscribe } from './rss';
+import { getSubscribesByUserId } from './model/subscribe';
+import { getSourceById } from './model/source';
 
 export const commandDefinition = [
 	{
@@ -54,7 +56,34 @@ export const commandDefinition = [
 			});
 		},
 	},
-	{ command: 'list', description: '列出 RSS 源' },
+	{
+		command: 'list',
+		description: '列出 RSS 源',
+		async handler(message: Message.TextMessage) {
+			const subscribes = await getSubscribesByUserId(message.chat.id);
+			if (!subscribes.length) {
+				await callTelegram('sendMessage', {
+					chat_id: message.chat.id,
+					text: 'Not subscribe found',
+				});
+				return;
+			}
+
+			let text = '';
+			for (const s of subscribes) {
+				const source = (await getSourceById(s.source_id))!;
+				text += `\\[${s.id}] `;
+				text += `[${source.title}](${source.link})`;
+				text += '\n';
+			}
+
+			await callTelegram('sendMessage', {
+				chat_id: message.chat.id,
+				text,
+				parse_mode: 'Markdown',
+			});
+		},
+	},
 	{ command: 'check', description: '检查 RSS 订阅状态' },
 	{ command: 'pause', description: '暂停查询最新订阅' },
 	{ command: 'activate', description: '恢复查询最新订阅' },
