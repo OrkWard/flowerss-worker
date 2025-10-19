@@ -1,8 +1,9 @@
 import { get } from './fetch';
 import { tryParseRssOrAtom } from './parse';
-import { createSource, getSourceByLink, getSourceById } from '../model/source';
+import { createSource, getSourceByLink } from '../model/source';
 import { createSubscribe, getSubscribeByUserAndSource, deleteSubscribe, getSubscribesByUserId } from '../model/subscribe';
 
+/** @throws */
 export async function addRssSubscribe(userId: number, link: string) {
 	try {
 		const content = await get(link);
@@ -47,29 +48,5 @@ export async function removeRssSubscribe(subscribeId: number) {
 	}
 }
 
-/**
- * Get all RSS subscriptions for a user with source details
- * @param userId - Telegram user ID
- * @returns Array of subscriptions with source details
- */
-export async function listRssSubscribes(userId: number) {
-	try {
-		const subscribes = await getSubscribesByUserId(userId);
-		const result = [];
-
-		for (const subscribe of subscribes) {
-			const source = await getSourceById(subscribe.source_id);
-			if (source) {
-				result.push({
-					subscribe,
-					source,
-				});
-			}
-		}
-
-		return result;
-	} catch (e) {
-		console.error('Failed to list RSS subscriptions:', e);
-		throw e;
-	}
-}
+/** @throws */
+export async function fetchRss() {}

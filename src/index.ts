@@ -61,4 +61,7 @@ export default {
 		// 404
 		return new Response('404 Not Found\nHeart from OrkWard');
 	},
+	async scheduled(controller, env, ctx) {
+		console.log('cron processed');
+	},
 } satisfies ExportedHandler<Env>;
