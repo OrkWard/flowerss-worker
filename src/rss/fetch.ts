@@ -1,23 +1,42 @@
-/** @throws */
-export async function get(url: string) {
-	let response;
-	try {
-		response = await fetch(url, {
-			method: 'GET',
-			headers: { 'User-Agent': 'FeedlyBot/1.0 (+http://www.feedly.com/feedlybot.html)' },
+import { Effect, Data } from 'effect';
+
+export class FetchNetworkError extends Data.TaggedError('FetchNetworkError')<{
+	readonly error: unknown;
+	readonly url: string;
+}> {}
+
+export class FetchResponseError extends Data.TaggedError('FetchResponseError')<{
+	readonly status: number;
+	readonly statusText: string;
+	readonly body: string;
+	readonly url: string;
+}> {}
+
+export class FetchBodyTransformError extends Data.TaggedError('FetchBodyTransformError')<{
+	readonly error: unknown;
+	readonly url: string;
+}> {}
+
+export type FetchError = FetchNetworkError | FetchResponseError | FetchBodyTransformError;
+
+export const get = (url: string) =>
+	Effect.gen(function* () {
+		const response = yield* Effect.tryPromise({
+			try: () =>
+				fetch(url, {
+					method: 'GET',
+					headers: { 'User-Agent': 'FeedlyBot/1.0 (+http://www.feedly.com/feedlybot.html)' },
+				}),
+			catch: (error) => new FetchNetworkError({ error, url }),
 		});
-	} catch (e) {
-		console.error('fetch network error', e);
-		throw e;
-	}
-	if (!response.ok) {
-		console.error('fetch response code error', response.status, response.statusText, await response.text());
-		throw new Error(`http code error: ${response.status}`);
-	}
-	try {
-		return await response.text();
-	} catch (e) {
-		console.error('transform body to string error', e);
-		throw e;
-	}
-}
+
+		if (!response.ok) {
+			const body = yield* Effect.tryPromise(() => response.text()).pipe(Effect.orElseSucceed(() => '<unable to read response body>'));
+			return yield* Effect.fail(new FetchResponseError({ body, status: response.status, statusText: response.statusText, url }));
+		}
+
+		return yield* Effect.tryPromise({
+			try: () => response.text(),
+			catch: (error) => new FetchBodyTransformError({ error, url }),
+		});
+	});

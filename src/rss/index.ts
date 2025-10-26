@@ -2,51 +2,28 @@ import { get } from './fetch';
 import { tryParseRssOrAtom } from './parse';
 import { createSource, getSourceByLink } from '../model/source';
 import { createSubscribe, getSubscribeByUserAndSource, deleteSubscribe, getSubscribesByUserId } from '../model/subscribe';
+import { Effect } from 'effect';
 
-/** @throws */
-export async function addRssSubscribe(userId: number, link: string) {
-	try {
-		const content = await get(link);
-		const feed = tryParseRssOrAtom(content);
-
-		let source = await getSourceByLink(link);
+export const addRssSubscribe = (userId: number, link: string) =>
+	Effect.gen(function* () {
+		const content = yield* get(link);
+		const feed = yield* tryParseRssOrAtom(content);
+		let source = yield* getSourceByLink(link);
 		if (!source) {
-			source = await createSource(link, feed.title);
-			if (!source) {
-				throw new Error('Failed to create source');
-			}
+			source = yield* createSource(link, feed.title);
 		}
 
-		const existingSubscribe = await getSubscribeByUserAndSource(userId, source.id);
+		const existingSubscribe = yield* getSubscribeByUserAndSource(userId, source.id);
 		if (existingSubscribe) {
-			throw new Error('Already subscribed to this feed');
+			return yield* Effect.fail(new Error('Already subscribed to this feed'));
 		}
-
-		const subscribe = await createSubscribe(userId, source.id);
-		if (!subscribe) {
-			throw new Error('Failed to create subscription');
-		}
-
+		const subscribe = yield* createSubscribe(userId, source.id);
 		return {
 			subscribe,
 			source,
 			feed,
 		};
-	} catch (e) {
-		console.error('Failed to add RSS subscription:', e);
-		throw e;
-	}
-}
+	});
+export const removeRssSubscribe = (subscribeId: number) => deleteSubscribe(subscribeId);
 
-/** @throws */
-export async function removeRssSubscribe(subscribeId: number) {
-	try {
-		await deleteSubscribe(subscribeId);
-	} catch (e) {
-		console.error('Failed to remove RSS subscription:', e);
-		throw e;
-	}
-}
-
-/** @throws */
-export async function fetchRss() {}
+export const fetchRss = () => Effect.succeed(Effect.void);

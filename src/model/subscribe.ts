@@ -1,4 +1,5 @@
-import { env } from 'cloudflare:workers';
+import { Effect, pipe } from 'effect';
+import { DatabaseError, runQuery } from './utils';
 
 export interface Subscribe {
 	id: number;
@@ -6,33 +7,42 @@ export interface Subscribe {
 	source_id: number;
 }
 
-export async function createSubscribe(user_id: number, source_id: number): Promise<Subscribe | null> {
-	const result = await env.flowerss_db
-		.prepare('INSERT INTO subscribe (user_id, source_id) VALUES (?, ?) RETURNING *')
-		.bind(user_id, source_id)
-		.first();
-	return result as Subscribe | null;
-}
+export const createSubscribe = (user_id: number, source_id: number) =>
+	pipe(
+		runQuery('createSubscribe', (db) =>
+			db.prepare('INSERT INTO subscribe (user_id, source_id) VALUES (?, ?) RETURNING *').bind(user_id, source_id).first(),
+		),
+		Effect.flatMap((result) =>
+			result
+				? Effect.succeed(result as unknown as Subscribe)
+				: Effect.fail(new DatabaseError({ cause: 'No result returned', operation: 'createSubscribe' })),
+		),
+	);
 
-export async function getSubscribeByUserAndSource(user_id: number, source_id: number): Promise<Subscribe | null> {
-	const result = await env.flowerss_db
-		.prepare('SELECT * FROM subscribe WHERE user_id = ? AND source_id = ?')
-		.bind(user_id, source_id)
-		.first();
-	return result as Subscribe | null;
-}
+export const getSubscribeByUserAndSource = (user_id: number, source_id: number) =>
+	pipe(
+		runQuery('getSubscribeByUserAndSource', (db) =>
+			db.prepare('SELECT * FROM subscribe WHERE user_id = ? AND source_id = ?').bind(user_id, source_id).first(),
+		),
+		Effect.map((result) => result as Subscribe | null),
+	);
 
-export async function getSubscribesByUserId(user_id: number): Promise<Subscribe[]> {
-	const result = await env.flowerss_db.prepare('SELECT * FROM subscribe WHERE user_id = ?').bind(user_id).all();
-	return result.results as unknown as Subscribe[];
-}
+export const getSubscribesByUserId = (user_id: number) =>
+	pipe(
+		runQuery('getSubscribesByUserId', (db) => db.prepare('SELECT * FROM subscribe WHERE user_id = ?').bind(user_id).all()),
+		Effect.map((result) => result.results as unknown as Subscribe[]),
+	);
 
-export async function deleteSubscribe(id: number): Promise<boolean> {
-	const result = await env.flowerss_db.prepare('DELETE FROM subscribe WHERE id = ?').bind(id).run();
-	return result.success;
-}
+export const deleteSubscribe = (id: number) =>
+	pipe(
+		runQuery('deleteSubscribe', (db) => db.prepare('DELETE FROM subscribe WHERE id = ?').bind(id).run()),
+		Effect.map((result) => result.success),
+	);
 
-export async function isUserSubscribedToSource(user_id: number, source_id: number): Promise<boolean> {
-	const row = await env.flowerss_db.prepare('SELECT 1 FROM subscribe WHERE user_id = ? AND source_id = ?').bind(user_id, source_id).first();
-	return Boolean(row);
-}
+export const isUserSubscribedToSource = (user_id: number, source_id: number) =>
+	pipe(
+		runQuery('isUserSubscribedToSource', (db) =>
+			db.prepare('SELECT 1 FROM subscribe WHERE user_id = ? AND source_id = ?').bind(user_id, source_id).first(),
+		),
+		Effect.map((row) => Boolean(row)),
+	);

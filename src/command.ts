@@ -3,86 +3,85 @@ import { callTelegram } from './telegram';
 import { addRssSubscribe, removeRssSubscribe } from './rss';
 import { getSubscribesByUserId } from './model/subscribe';
 import { getSourceById } from './model/source';
+import { Effect } from 'effect';
 
 export const commandDefinition = [
 	{
 		command: 'ping',
 		description: '打个招呼',
-		/** @throws */
-		async handler(message: Message.TextMessage) {
-			await callTelegram('sendMessage', {
+		handler: (message: Message.TextMessage) =>
+			callTelegram('sendMessage', {
 				chat_id: message.chat.id,
 				text: 'pong',
-			});
-		},
+			}),
 	},
 	{
 		command: 'add',
 		description: '订阅 RSS 源',
-		async handler(message: Message.TextMessage) {
-			const [_, link] = message.text.match(/^\/add(.*)/) || [];
-			if (!link) {
-				await callTelegram('sendMessage', {
-					chat_id: message.chat.id,
-					text: 'Usage: /add [rss subscribe link]',
-				});
-				return;
-			}
+		handler: (message: Message.TextMessage) =>
+			Effect.gen(function* () {
+				const [_, link] = message.text.match(/^\/add(.*)/) || [];
+				if (!link) {
+					return yield* callTelegram('sendMessage', {
+						chat_id: message.chat.id,
+						text: 'Usage: /add [rss subscribe link]',
+					});
+				}
 
-			await addRssSubscribe(message.chat.id, link.trim());
-			await callTelegram('sendMessage', {
-				chat_id: message.chat.id,
-				text: 'Success',
-			});
-		},
+				yield* addRssSubscribe(message.chat.id, link.trim());
+				yield* callTelegram('sendMessage', {
+					chat_id: message.chat.id,
+					text: 'Success',
+				});
+			}),
 	},
 	{
 		command: 'remove',
 		description: '退订 RSS 源',
-		async handler(message: Message.TextMessage) {
-			const [_, id] = message.text.match(/^\/remove (\d*)/) || [];
-			if (!id) {
-				await callTelegram('sendMessage', {
-					chat_id: message.chat.id,
-					text: 'Usage: /remove [subscribe id]',
-				});
-				return;
-			}
+		handler: (message: Message.TextMessage) =>
+			Effect.gen(function* () {
+				const [_, id] = message.text.match(/^\/remove (\d*)/) || [];
+				if (!id) {
+					return yield* callTelegram('sendMessage', {
+						chat_id: message.chat.id,
+						text: 'Usage: /remove [subscribe id]',
+					});
+				}
 
-			await removeRssSubscribe(parseInt(id));
-			await callTelegram('sendMessage', {
-				chat_id: message.chat.id,
-				text: 'Success',
-			});
-		},
+				yield* removeRssSubscribe(parseInt(id));
+				yield* callTelegram('sendMessage', {
+					chat_id: message.chat.id,
+					text: 'Success',
+				});
+			}),
 	},
 	{
 		command: 'list',
 		description: '列出 RSS 源',
-		async handler(message: Message.TextMessage) {
-			const subscribes = await getSubscribesByUserId(message.chat.id);
-			if (!subscribes.length) {
-				await callTelegram('sendMessage', {
+		handler: (message: Message.TextMessage) =>
+			Effect.gen(function* () {
+				const subscribes = yield* getSubscribesByUserId(message.chat.id);
+				if (!subscribes.length) {
+					return yield* callTelegram('sendMessage', {
+						chat_id: message.chat.id,
+						text: 'Not subscribe found',
+					});
+				}
+
+				let text = '';
+				for (const s of subscribes) {
+					const source = (yield* getSourceById(s.source_id))!;
+					text += `\\[${s.id}] `;
+					text += `[${source.title}](${source.link})`;
+					text += '\n';
+				}
+
+				yield* callTelegram('sendMessage', {
 					chat_id: message.chat.id,
-					text: 'Not subscribe found',
+					text,
+					parse_mode: 'Markdown',
 				});
-				return;
-			}
-
-			let text = '';
-			for (const s of subscribes) {
-				const source = (await getSourceById(s.source_id))!;
-				text += `\\[${s.id}] `;
-				text += `[${source.title}](${source.link})`;
-				text += '\n';
-			}
-
-			await callTelegram('sendMessage', {
-				chat_id: message.chat.id,
-				text,
-				parse_mode: 'Markdown',
-			});
-		},
+			}),
 	},
 	{ command: 'check', description: '检查 RSS 订阅状态' },
 	{ command: 'pause', description: '暂停查询最新订阅' },

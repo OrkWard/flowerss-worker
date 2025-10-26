@@ -1,4 +1,5 @@
-import { env } from 'cloudflare:workers';
+import { Effect, pipe } from 'effect';
+import { runQuery } from './utils';
 
 export interface User {
 	id: number;
@@ -6,7 +7,8 @@ export interface User {
 	first_name: string;
 }
 
-export async function isUserExist(id: number) {
-	const result = await env.flowerss_db.prepare('SELECT * FROM user WHERE id = (?)').bind(id).first();
-	return Boolean(result);
-}
+export const isUserExist = (id: number) =>
+	pipe(
+		runQuery('isUserExist', (db) => db.prepare('SELECT * FROM user WHERE id = (?)').bind(id).first()),
+		Effect.map((result) => Boolean(result)),
+	);

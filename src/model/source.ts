@@ -1,4 +1,5 @@
-import { env } from 'cloudflare:workers';
+import { Effect, pipe } from 'effect';
+import { DatabaseError, runQuery } from './utils';
 
 export interface Source {
 	id: number;
@@ -9,26 +10,35 @@ export interface Source {
 	update_at: number;
 }
 
-export async function createSource(link: string, title?: string): Promise<Source | null> {
-	const now = new Date().getTime();
-	const result = await env.flowerss_db
-		.prepare('INSERT INTO source (title, link, error_count, create_at, update_at) VALUES (?, ?, 0, ?, ?) RETURNING *')
-		.bind(title || null, link, now, now)
-		.first();
-	return result as Source | null;
-}
+export const createSource = (link: string, title?: string) =>
+	pipe(
+		runQuery('createSource', (db) => {
+			const now = new Date().getTime();
+			return db
+				.prepare('INSERT INTO source (title, link, error_count, create_at, update_at) VALUES (?, ?, 0, ?, ?) RETURNING *')
+				.bind(title || null, link, now, now)
+				.first();
+		}),
+		Effect.flatMap((result) =>
+			result
+				? Effect.succeed(result as unknown as Source)
+				: Effect.fail(new DatabaseError({ cause: 'No result returned', operation: 'createSource' })),
+		),
+	);
 
-export async function getSourceById(id: number): Promise<Source | null> {
-	const result = await env.flowerss_db.prepare('SELECT * FROM source WHERE id = ?').bind(id).first();
-	return result as Source | null;
-}
+export const getSourceById = (id: number) =>
+	pipe(
+		runQuery('getSourceById', (db) => db.prepare('SELECT * FROM source WHERE id = ?').bind(id).first()),
+		Effect.map((result) => result as Source | null),
+	);
 
-export async function getSourceByLink(link: string): Promise<Source | null> {
-	const result = await env.flowerss_db.prepare('SELECT * FROM source WHERE link = ?').bind(link).first();
-	return result as Source | null;
-}
+export const getSourceByLink = (link: string) =>
+	pipe(
+		runQuery('getSourceByLink', (db) => db.prepare('SELECT * FROM source WHERE link = ?').bind(link).first()),
+		Effect.map((result) => result as Source | null),
+	);
 
-export async function updateSource(id: number, title?: string, link?: string): Promise<Source | null> {
+export const updateSource = (id: number, title?: string, link?: string) => {
 	const now = new Date().getTime();
 	const updates: string[] = [];
 	const binds: any[] = [];
@@ -45,37 +55,43 @@ export async function updateSource(id: number, title?: string, link?: string): P
 	binds.push(now);
 	binds.push(id);
 
-	const result = await env.flowerss_db
-		.prepare(`UPDATE source SET ${updates.join(', ')} WHERE id = ? RETURNING *`)
-		.bind(...binds)
-		.first();
-	return result as Source | null;
-}
+	return pipe(
+		runQuery('updateSource', (db) =>
+			db
+				.prepare(`UPDATE source SET ${updates.join(', ')} WHERE id = ? RETURNING *`)
+				.bind(...binds)
+				.first(),
+		),
+		Effect.map((result) => result as Source | null),
+	);
+};
 
-export async function incrementSourceErrorCount(id: number): Promise<Source | null> {
-	const now = new Date().getTime();
-	const result = await env.flowerss_db
-		.prepare('UPDATE source SET error_count = error_count + 1, update_at = ? WHERE id = ? RETURNING *')
-		.bind(now, id)
-		.first();
-	return result as Source | null;
-}
+export const incrementSourceErrorCount = (id: number) =>
+	pipe(
+		runQuery('incrementSourceErrorCount', (db) => {
+			const now = new Date().getTime();
+			return db.prepare('UPDATE source SET error_count = error_count + 1, update_at = ? WHERE id = ? RETURNING *').bind(now, id).first();
+		}),
+		Effect.map((result) => result as Source | null),
+	);
 
-export async function resetSourceErrorCount(id: number): Promise<Source | null> {
-	const now = new Date().getTime();
-	const result = await env.flowerss_db
-		.prepare('UPDATE source SET error_count = 0, update_at = ? WHERE id = ? RETURNING *')
-		.bind(now, id)
-		.first();
-	return result as Source | null;
-}
+export const resetSourceErrorCount = (id: number) =>
+	pipe(
+		runQuery('resetSourceErrorCount', (db) => {
+			const now = new Date().getTime();
+			return db.prepare('UPDATE source SET error_count = 0, update_at = ? WHERE id = ? RETURNING *').bind(now, id).first();
+		}),
+		Effect.map((result) => result as Source | null),
+	);
 
-export async function deleteSource(id: number): Promise<boolean> {
-	const result = await env.flowerss_db.prepare('DELETE FROM source WHERE id = ?').bind(id).run();
-	return result.success;
-}
+export const deleteSource = (id: number) =>
+	pipe(
+		runQuery('deleteSource', (db) => db.prepare('DELETE FROM source WHERE id = ?').bind(id).run()),
+		Effect.map((result) => result.success),
+	);
 
-export async function getAllSources(): Promise<Source[]> {
-	const result = await env.flowerss_db.prepare('SELECT * FROM source').all();
-	return result.results as unknown as Source[];
-}
+export const getAllSources = () =>
+	pipe(
+		runQuery('getAllSources', (db) => db.prepare('SELECT * FROM source').all()),
+		Effect.map((result) => result.results as unknown as Source[]),
+	);
