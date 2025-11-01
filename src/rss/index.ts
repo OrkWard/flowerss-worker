@@ -1,13 +1,18 @@
 import { get } from './fetch';
 import { tryParseRssOrAtom } from './parse';
 import { createSource, getSourceByLink } from '../model/source';
-import { createSubscribe, getSubscribeByUserAndSource, deleteSubscribe, getSubscribesByUserId } from '../model/subscribe';
+import { createSubscribe, getSubscribeByUserAndSource, deleteSubscribe } from '../model/subscribe';
 import { Effect } from 'effect';
+
+export const fetchRss = (link: string) =>
+	Effect.gen(function* () {
+		const content = yield* get(link);
+		return yield* tryParseRssOrAtom(content);
+	});
 
 export const addRssSubscribe = (userId: number, link: string) =>
 	Effect.gen(function* () {
-		const content = yield* get(link);
-		const feed = yield* tryParseRssOrAtom(content);
+		const feed = yield* fetchRss(link);
 		let source = yield* getSourceByLink(link);
 		if (!source) {
 			source = yield* createSource(link, feed.title);
@@ -24,6 +29,5 @@ export const addRssSubscribe = (userId: number, link: string) =>
 			feed,
 		};
 	});
-export const removeRssSubscribe = (subscribeId: number) => deleteSubscribe(subscribeId);
 
-export const fetchRss = () => Effect.succeed(Effect.void);
+export const removeRssSubscribe = (subscribeId: number) => deleteSubscribe(subscribeId);

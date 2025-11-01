@@ -1,5 +1,6 @@
 import { XMLParser } from 'fast-xml-parser';
 import { Effect, Data } from 'effect';
+import { maxBy } from 'es-toolkit';
 
 const parser = new XMLParser({
 	alwaysCreateTextNode: true,
@@ -11,7 +12,7 @@ const parser = new XMLParser({
 export type Feed = {
 	title: string;
 	description: string;
-	lastBuildDate: number;
+	lastPub: number;
 	items: FeedItem[];
 };
 
@@ -42,7 +43,6 @@ const parseXml = (content: string) =>
 
 const parseRss = (xml: any): Effect.Effect<Feed, ParseError> =>
 	Effect.gen(function* () {
-		const now = Date.now();
 		const channel = xml.rss.channel;
 
 		if (!channel) {
@@ -55,12 +55,16 @@ const parseRss = (xml: any): Effect.Effect<Feed, ParseError> =>
 		}
 
 		const items: any[] = Array.isArray(channel.item) ? channel.item : channel.item ? [channel.item] : [];
+		if (!items.length) {
+			return yield* Effect.fail(new ParseError({ message: 'Invalid RSS: missing item' }));
+		}
 
 		const parsedItems = yield* Effect.all(
 			items.map((item: any) =>
 				Effect.gen(function* () {
 					const itemTitle = item.title?.['#text'];
 					const itemLink = item.link?.['#text'];
+					const itemPubDate = item.pubDate?.['#text'];
 
 					if (!itemTitle) {
 						return yield* Effect.fail(new ParseError({ message: 'Invalid RSS item: missing title' }));
@@ -68,12 +72,15 @@ const parseRss = (xml: any): Effect.Effect<Feed, ParseError> =>
 					if (!itemLink) {
 						return yield* Effect.fail(new ParseError({ message: 'Invalid RSS item: missing link' }));
 					}
+					if (!itemPubDate) {
+						return yield* Effect.fail(new ParseError({ message: 'Invalid RSS item: missing pubDate' }));
+					}
 
 					return {
 						title: itemTitle,
 						link: itemLink,
 						description: item.description?.['#text'] || '',
-						pubDate: item.pubDate?.['#text'] || now,
+						pubDate: new Date(itemPubDate).getTime(),
 						guid: item.guid?.['#text'] || itemLink,
 					} as FeedItem;
 				}),
@@ -84,14 +91,13 @@ const parseRss = (xml: any): Effect.Effect<Feed, ParseError> =>
 		return {
 			title,
 			description: channel.description?.['#text'] || title,
-			lastBuildDate: channel.lastBuildDate?.['#text'] ? new Date(channel.lastBuildDate?.['#text']).getTime() : now,
+			lastPub: maxBy(parsedItems, (item) => item.pubDate)!.pubDate,
 			items: parsedItems,
 		};
 	});
 
 const parseAtom = (xml: any): Effect.Effect<Feed, ParseError> =>
 	Effect.gen(function* () {
-		const now = Date.now();
 		const title = xml.feed.title?.['#text'];
 
 		if (!title) {
@@ -99,6 +105,10 @@ const parseAtom = (xml: any): Effect.Effect<Feed, ParseError> =>
 		}
 
 		const entries: any[] = Array.isArray(xml.feed.entry) ? xml.feed.entry : xml.feed.entry ? [xml.feed.entry] : [];
+
+		if (!entries.length) {
+			return yield* Effect.fail(new ParseError({ message: 'Invalid RSS: missing item' }));
+		}
 
 		const parsedItems = yield* Effect.all(
 			entries.map((entry: any) =>
@@ -145,7 +155,7 @@ const parseAtom = (xml: any): Effect.Effect<Feed, ParseError> =>
 		return {
 			title,
 			description: xml.feed.subtitle?.['#text'] || title,
-			lastBuildDate: xml.feed.updated?.['#text'] || now,
+			lastPub: maxBy(parsedItems, (item) => item.pubDate)!.pubDate,
 			items: parsedItems,
 		};
 	});

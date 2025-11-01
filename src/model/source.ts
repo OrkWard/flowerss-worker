@@ -38,33 +38,11 @@ export const getSourceByLink = (link: string) =>
 		Effect.map((result) => result as Source | null),
 	);
 
-export const updateSource = (id: number, title?: string, link?: string) => {
-	const now = new Date().getTime();
-	const updates: string[] = [];
-	const binds: any[] = [];
-
-	if (title !== undefined) {
-		updates.push('title = ?');
-		binds.push(title);
-	}
-	if (link !== undefined) {
-		updates.push('link = ?');
-		binds.push(link);
-	}
-	updates.push('update_at = ?');
-	binds.push(now);
-	binds.push(id);
-
-	return pipe(
-		runQuery('updateSource', (db) =>
-			db
-				.prepare(`UPDATE source SET ${updates.join(', ')} WHERE id = ? RETURNING *`)
-				.bind(...binds)
-				.first(),
-		),
+export const renewSource = (id: number, update_at: number) =>
+	pipe(
+		runQuery('updateSource', (db) => db.prepare(`UPDATE source SET update_at = ? WHERE id = ? RETURNING *`).bind(update_at, id).first()),
 		Effect.map((result) => result as Source | null),
 	);
-};
 
 export const incrementSourceErrorCount = (id: number) =>
 	pipe(
