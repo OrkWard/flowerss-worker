@@ -16,7 +16,6 @@ export class WebhookSetupError extends Data.TaggedError('WebhookSetupError')<{
 
 const handleUpdate = (update: Update) =>
 	Effect.gen(function* () {
-		// Ignore non-message updates
 		if (!('message' in update)) {
 			return;
 		}
@@ -27,26 +26,14 @@ const handleUpdate = (update: Update) =>
 			return;
 		}
 
-		// Handle text commands
 		if ('text' in update.message) {
 			for (const def of commandDefinition) {
-				if (update.message.text.match(new RegExp(`^/${def.command}`))) {
-					if (!def.handler) {
-						return;
-					}
-
-					// Execute command handler and catch errors
-					yield* pipe(
-						def.handler(update.message),
-						Effect.catchAll((error) =>
-							callTelegram('sendMessage', {
-								chat_id: update.message.chat.id,
-								text: error.message || 'An error occurred',
-							}),
-						),
-					);
-					return;
+				if (!update.message.text.match(new RegExp(`^/${def.command}`))) {
+					continue;
 				}
+
+				yield* def.handler(update.message);
+				return;
 			}
 		}
 	});
