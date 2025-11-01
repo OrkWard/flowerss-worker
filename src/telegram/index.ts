@@ -5,7 +5,7 @@ import { Data, Effect } from 'effect';
 type Args<T extends keyof ApiMethods<File>> = ApiMethods<File>[T] extends (...args: infer P) => any ? P[0] : never;
 type Response<T extends keyof ApiMethods<File>> = ApiMethods<File>[T] extends (...args: any[]) => infer P ? P : never;
 
-const BASE_URL = 'http://localhost:10000/bot' + env.bot_token + '/';
+const BASE_URL = `http://${env.telegram_api_host ?? 'api.telegram.org'}/bot${env.bot_token}/`;
 
 export class TgNetworkError extends Data.TaggedError('TgNetworkError')<{
 	readonly error: unknown;
