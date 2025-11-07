@@ -4,8 +4,9 @@
     "types": ["npm:@telegraf/types"]
   },
   "tasks": {
-    "dev": "deno run --watch --env-file --allow-all --unstable-cron --unstable-kv main.ts",
+    "dev": "deno run --env-file --watch --allow-all --unstable-cron --unstable-kv main.ts",
     "migrate": "deno run --unstable-kv migrate.ts",
+    "init-config": "op inject --in-file .env.example --out-file .env --force",
     "deploy": "",
     "tunnel": "cloudflared tunnel run --token $(op read op://Project/flowerss-worker/tunnel-token)"
   },

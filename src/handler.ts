@@ -26,7 +26,14 @@ const handleUpdate = (update: Update) =>
           continue;
         }
 
-        yield* def.handler(update.message);
+        yield* def.handler(update.message).pipe(
+          Effect.orElse(() =>
+            callTelegram("sendMessage", {
+              chat_id: update.message.chat.id,
+              text: "Something error, see log",
+            })
+          ),
+        );
         return;
       }
     }

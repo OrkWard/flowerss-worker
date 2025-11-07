@@ -2,7 +2,7 @@ import { Effect, pipe } from "effect";
 import { KV } from "./src/service.ts";
 import { handleRequest } from "./src/handler.ts";
 
-Deno.serve(async (req) => {
+Deno.serve({ port: 8787, hostname: "localhost" }, async (req) => {
   const program = pipe(
     handleRequest(req),
     Effect.catchAll((error) => {
