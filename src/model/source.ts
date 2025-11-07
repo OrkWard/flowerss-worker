@@ -1,75 +1,120 @@
-import { Effect, pipe } from 'effect';
-import { DatabaseError, runQuery } from './utils';
+import { pipe } from "effect";
+import { runQuery } from "./utils.ts";
 
 export interface Source {
-	id: number;
-	title: string;
-	link: string;
-	error_count: number;
-	create_at: number;
-	update_at: number;
+  id: number;
+  title: string;
+  link: string;
+  error_count: number;
+  create_at: number;
+  update_at: number;
 }
 
 export const createSource = (link: string, title?: string) =>
-	pipe(
-		runQuery('createSource', (db) => {
-			const now = new Date().getTime();
-			return db
-				.prepare('INSERT INTO source (title, link, error_count, create_at, update_at) VALUES (?, ?, 0, ?, ?) RETURNING *')
-				.bind(title || null, link, now, now)
-				.first();
-		}),
-		Effect.flatMap((result) =>
-			result
-				? Effect.succeed(result as unknown as Source)
-				: Effect.fail(new DatabaseError({ cause: 'No result returned', operation: 'createSource' })),
-		),
-	);
+  pipe(
+    runQuery("createSource", async (kv) => {
+      const currentId = await kv.get<number>(["source_id_counter"]);
+      const nextId = (currentId.value ?? 0) + 1;
+      await kv.set(["source_id_counter"], nextId);
+
+      const now = new Date().getTime();
+      const source: Source = {
+        id: nextId,
+        title: title || "",
+        link,
+        error_count: 0,
+        create_at: now,
+        update_at: now,
+      };
+      await kv.set(["source", nextId], source);
+      return source;
+    }),
+  );
 
 export const getSourceById = (id: number) =>
-	pipe(
-		runQuery('getSourceById', (db) => db.prepare('SELECT * FROM source WHERE id = ?').bind(id).first()),
-		Effect.map((result) => result as Source | null),
-	);
+  pipe(
+    runQuery("getSourceById", async (kv) => {
+      const source = await kv.get<Source>(["source", id]);
+      return source.value;
+    }),
+  );
 
 export const getSourceByLink = (link: string) =>
-	pipe(
-		runQuery('getSourceByLink', (db) => db.prepare('SELECT * FROM source WHERE link = ?').bind(link).first()),
-		Effect.map((result) => result as Source | null),
-	);
+  pipe(
+    runQuery("getSourceByLink", async (kv) => {
+      const iter = kv.list<Source>({ prefix: ["source"] });
+      for await (const entry of iter) {
+        if (entry.value.link === link) {
+          return entry.value;
+        }
+      }
+      return null;
+    }),
+  );
 
 export const renewSource = (id: number, update_at: number) =>
-	pipe(
-		runQuery('updateSource', (db) => db.prepare(`UPDATE source SET update_at = ? WHERE id = ? RETURNING *`).bind(update_at, id).first()),
-		Effect.map((result) => result as Source | null),
-	);
+  pipe(
+    runQuery("updateSource", async (kv) => {
+      const source = (await kv.get<Source>(["source", id])).value;
+      if (source) {
+        const newSource = { ...source, update_at };
+        await kv.set(["source", id], newSource);
+        return newSource;
+      }
+      return null;
+    }),
+  );
 
 export const incrementSourceErrorCount = (id: number) =>
-	pipe(
-		runQuery('incrementSourceErrorCount', (db) => {
-			const now = new Date().getTime();
-			return db.prepare('UPDATE source SET error_count = error_count + 1, update_at = ? WHERE id = ? RETURNING *').bind(now, id).first();
-		}),
-		Effect.map((result) => result as Source | null),
-	);
+  pipe(
+    runQuery("incrementSourceErrorCount", async (kv) => {
+      const source = (await kv.get<Source>(["source", id])).value;
+      if (source) {
+        const newSource = {
+          ...source,
+          error_count: source.error_count + 1,
+          update_at: new Date().getTime(),
+        };
+        await kv.set(["source", id], newSource);
+        return newSource;
+      }
+      return null;
+    }),
+  );
 
 export const resetSourceErrorCount = (id: number) =>
-	pipe(
-		runQuery('resetSourceErrorCount', (db) => {
-			const now = new Date().getTime();
-			return db.prepare('UPDATE source SET error_count = 0, update_at = ? WHERE id = ? RETURNING *').bind(now, id).first();
-		}),
-		Effect.map((result) => result as Source | null),
-	);
+  pipe(
+    runQuery("resetSourceErrorCount", async (kv) => {
+      const source = (await kv.get<Source>(["source", id])).value;
+      if (source) {
+        const newSource = {
+          ...source,
+          error_count: 0,
+          update_at: new Date().getTime(),
+        };
+        await kv.set(["source", id], newSource);
+        return newSource;
+      }
+      return null;
+    }),
+  );
 
 export const deleteSource = (id: number) =>
-	pipe(
-		runQuery('deleteSource', (db) => db.prepare('DELETE FROM source WHERE id = ?').bind(id).run()),
-		Effect.map((result) => result.success),
-	);
+  pipe(
+    runQuery("deleteSource", async (kv) => {
+      await kv.delete(["source", id]);
+      return true;
+    }),
+  );
 
 export const getAllSources = () =>
-	pipe(
-		runQuery('getAllSources', (db) => db.prepare('SELECT * FROM source').all()),
-		Effect.map((result) => result.results as unknown as Source[]),
-	);
+  pipe(
+    runQuery("getAllSources", async (kv) => {
+      const sources: Source[] = [];
+      const iter = kv.list<Source>({ prefix: ["source"] });
+      for await (const entry of iter) {
+        sources.push(entry.value);
+      }
+      return sources;
+    }),
+  );

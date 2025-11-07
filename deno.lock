@@ -1,0 +1,72 @@
+{
+  "version": "5",
+  "specifiers": {
+    "jsr:@es-toolkit/es-toolkit@^1.41.0": "1.41.0",
+    "jsr:@std/assert@1": "1.0.15",
+    "jsr:@std/dotenv@*": "0.225.5",
+    "jsr:@std/internal@^1.0.12": "1.0.12",
+    "npm:@telegraf/types@*": "9.2.1",
+    "npm:effect@*": "3.19.2",
+    "npm:fast-xml-parser@*": "5.3.1"
+  },
+  "jsr": {
+    "@es-toolkit/es-toolkit@1.41.0": {
+      "integrity": "4df54a18e80b869880cee8a8a9ff7a5e1c424a9fd0916dccd38d34686f110071"
+    },
+    "@std/assert@1.0.15": {
+      "integrity": "d64018e951dbdfab9777335ecdb000c0b4e3df036984083be219ce5941e4703b",
+      "dependencies": [
+        "jsr:@std/internal"
+      ]
+    },
+    "@std/dotenv@0.225.5": {
+      "integrity": "9ce6f9d0ec3311f74a32535aa1b8c62ed88b1ab91b7f0815797d77a6f60c922f"
+    },
+    "@std/internal@1.0.12": {
+      "integrity": "972a634fd5bc34b242024402972cd5143eac68d8dffaca5eaa4dba30ce17b027"
+    }
+  },
+  "npm": {
+    "@standard-schema/spec@1.0.0": {
+      "integrity": "sha512-m2bOd0f2RT9k8QJx1JN85cZYyH1RqFBdlwtkSlf4tBDYLCiiZnv1fIIwacK6cqwXavOydf0NPToMQgpKq+dVlA=="
+    },
+    "@telegraf/types@9.2.1": {
+      "integrity": "sha512-GUL3imlzu78NXZc05eVI6r45VMmYET2Xww+Cfjt+RCKYy1O9jO3xcZResi62qaGkKo3lIwB4do+aGkivRhOEOA=="
+    },
+    "effect@3.19.2": {
+      "integrity": "sha512-AHkxfzl5RbWfHO9HOdLE4oZ0c3nxqkXKHc69t83GWYoAquZmSeoCjmLP5rPgbHvwv4DcfLr8WW8PWbtNIQI+vw==",
+      "dependencies": [
+        "@standard-schema/spec",
+        "fast-check"
+      ]
+    },
+    "fast-check@3.23.2": {
+      "integrity": "sha512-h5+1OzzfCC3Ef7VbtKdcv7zsstUQwUDlYpUTvjeUsJAssPgLn7QzbboPtL5ro04Mq0rPOsMzl7q5hIbRs2wD1A==",
+      "dependencies": [
+        "pure-rand"
+      ]
+    },
+    "fast-xml-parser@5.3.1": {
+      "integrity": "sha512-jbNkWiv2Ec1A7wuuxk0br0d0aTMUtQ4IkL+l/i1r9PRf6pLXjDgsBsWwO+UyczmQlnehi4Tbc8/KIvxGQe+I/A==",
+      "dependencies": [
+        "strnum"
+      ],
+      "bin": true
+    },
+    "pure-rand@6.1.0": {
+      "integrity": "sha512-bVWawvoZoBYpp6yIoQtQXHZjmz35RSVHnUOTefl8Vcjr8snTPY1wnpSPMWekcFwbxI6gtmT7rSYPFvz71ldiOA=="
+    },
+    "strnum@2.1.1": {
+      "integrity": "sha512-7ZvoFTiCnGxBtDqJ//Cu6fWtZtc7Y3x+QOirG15wztbdngGSkht27o2pyGWrVy0b4WAy3jbKmnoK6g5VlVNUUw=="
+    }
+  },
+  "workspace": {
+    "dependencies": [
+      "jsr:@es-toolkit/es-toolkit@^1.41.0",
+      "jsr:@std/assert@1",
+      "npm:@telegraf/types@*",
+      "npm:effect@*",
+      "npm:fast-xml-parser@*"
+    ]
+  }
+}
