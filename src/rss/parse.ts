@@ -71,7 +71,7 @@ const parseRss = (xml: any): Effect.Effect<Feed, ParseError> =>
       : [];
     if (!items.length) {
       return yield* Effect.fail(
-        new ParseError({ message: "Invalid RSS: missing item" }),
+        new ParseError({ message: `Invalid RSS: missing item [${title}]` }),
       );
     }
 
@@ -84,17 +84,23 @@ const parseRss = (xml: any): Effect.Effect<Feed, ParseError> =>
 
           if (!itemTitle) {
             return yield* Effect.fail(
-              new ParseError({ message: "Invalid RSS item: missing title" }),
+              new ParseError({
+                message: `Invalid RSS item: missing title [${title}]`,
+              }),
             );
           }
           if (!itemLink) {
             return yield* Effect.fail(
-              new ParseError({ message: "Invalid RSS item: missing link" }),
+              new ParseError({
+                message: `Invalid RSS item: missing link [${title}]`,
+              }),
             );
           }
           if (!itemPubDate) {
             return yield* Effect.fail(
-              new ParseError({ message: "Invalid RSS item: missing pubDate" }),
+              new ParseError({
+                message: `Invalid RSS item: missing pubDate [${title}]`,
+              }),
             );
           }
 
@@ -136,7 +142,7 @@ const parseAtom = (xml: any): Effect.Effect<Feed, ParseError> =>
 
     if (!entries.length) {
       return yield* Effect.fail(
-        new ParseError({ message: "Invalid RSS: missing item" }),
+        new ParseError({ message: `Invalid RSS: missing item [${title}]` }),
       );
     }
 
@@ -146,7 +152,9 @@ const parseAtom = (xml: any): Effect.Effect<Feed, ParseError> =>
           const entryTitle = entry.title?.["#text"];
           if (!entryTitle) {
             return yield* Effect.fail(
-              new ParseError({ message: "Invalid Atom entry: missing title" }),
+              new ParseError({
+                message: `Invalid Atom entry: missing title [${title}]`,
+              }),
             );
           }
 
@@ -162,7 +170,9 @@ const parseAtom = (xml: any): Effect.Effect<Feed, ParseError> =>
           }
           if (!entryLink) {
             return yield* Effect.fail(
-              new ParseError({ message: "Invalid Atom entry: missing link" }),
+              new ParseError({
+                message: `Invalid Atom entry: missing link [${title}]`,
+              }),
             );
           }
 
@@ -175,7 +185,7 @@ const parseAtom = (xml: any): Effect.Effect<Feed, ParseError> =>
           if (!pubDate) {
             return yield* Effect.fail(
               new ParseError({
-                message: "Invalid Atom entry: missing pubDate",
+                message: `Invalid Atom entry: missing pubDate [${title}]`,
               }),
             );
           }
