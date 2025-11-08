@@ -8,10 +8,11 @@ import {
 } from "../model/subscribe.ts";
 import { Data, Effect } from "effect";
 
-class AlreadySubscribedError extends Data.TaggedError("AlreadySubscribedError")<{
-  readonly link: string;
-  readonly userId: number;
-}> {}
+class AlreadySubscribedError
+  extends Data.TaggedError("AlreadySubscribedError")<{
+    readonly link: string;
+    readonly userId: number;
+  }> {}
 
 export const fetchRss = (link: string) =>
   Effect.gen(function* () {
@@ -21,6 +22,7 @@ export const fetchRss = (link: string) =>
 
 export const addRssSubscribe = (userId: number, link: string) =>
   Effect.gen(function* () {
+    yield* Effect.logInfo(`add subscribe to ${userId}: ${link}`);
     const feed = yield* fetchRss(link);
     let source = yield* getSourceByLink(link);
     if (!source) {
@@ -31,9 +33,8 @@ export const addRssSubscribe = (userId: number, link: string) =>
       source.id,
     );
     if (existingSubscribe) {
-      return yield* Effect.fail(
-        new AlreadySubscribedError({ link, userId }),
-      );
+      yield* Effect.logInfo(`already subscribed: ${link} for ${userId}`);
+      return yield* Effect.void;
     }
     const subscribe = yield* createSubscribe(userId, source.id);
     return {
