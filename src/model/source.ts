@@ -107,14 +107,13 @@ export const deleteSource = (id: number) =>
     }),
   );
 
-export const getAllSources = () =>
-  pipe(
-    runQuery("getAllSources", async (kv) => {
-      const sources: Source[] = [];
-      const iter = kv.list<Source>({ prefix: ["source"] });
-      for await (const entry of iter) {
-        sources.push(entry.value);
-      }
-      return sources;
-    }),
-  );
+export const getAllSources = pipe(
+  runQuery("getAllSources", async (kv) => {
+    const sources: Source[] = [];
+    const iter = kv.list<Source>({ prefix: ["source"] });
+    for await (const entry of iter) {
+      sources.push(entry.value);
+    }
+    return sources;
+  }),
+);

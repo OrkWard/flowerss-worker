@@ -7,19 +7,18 @@ export interface UserPreference {
   frequency: number | null;
 }
 
-export const getUserPreferences = () =>
-  pipe(
-    runQuery("getUserPreferences", async (kv) => {
-      const prefs = await kv.get<Record<number, UserPreference>>([
-        "user_preferences",
-      ]);
-      return prefs.value ?? {};
-    }),
-  );
+export const getUserPreferences = pipe(
+  runQuery("getUserPreferences", async (kv) => {
+    const prefs = await kv.get<Record<number, UserPreference>>([
+      "user_preferences",
+    ]);
+    return prefs.value ?? {};
+  }),
+);
 
 export const getUserPreferenceByUserId = (user_id: number) =>
   pipe(
-    getUserPreferences(),
+    getUserPreferences,
     Effect.map((prefs) => prefs[user_id] ?? null),
   );
 
@@ -84,8 +83,7 @@ export const deleteUserPreferenceByUserId = (user_id: number) =>
     }),
   );
 
-export const getAllUserPreferences = () =>
-  pipe(
-    getUserPreferences(),
-    Effect.map((prefs) => Object.values(prefs)),
-  );
+export const getAllUserPreferences = pipe(
+  getUserPreferences,
+  Effect.map((prefs) => Object.values(prefs)),
+);

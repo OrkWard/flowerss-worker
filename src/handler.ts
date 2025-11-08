@@ -47,15 +47,13 @@ const setupWebhook = (hostname: string) =>
     });
   });
 
-const deleteWebhook = () =>
-  Effect.gen(function* () {
-    yield* callTelegram("deleteWebhook", {});
-  });
+const deleteWebhook = Effect.gen(function* () {
+  yield* callTelegram("deleteWebhook", {});
+});
 
-const setCommands = () =>
-  Effect.gen(function* () {
-    yield* callTelegram("setMyCommands", { commands: commandDefinition });
-  });
+const setCommands = Effect.gen(function* () {
+  yield* callTelegram("setMyCommands", { commands: commandDefinition });
+});
 
 export const handleRequest = (request: Request) =>
   Effect.gen(function* () {
@@ -64,9 +62,9 @@ export const handleRequest = (request: Request) =>
     if (url.pathname === "/set") {
       yield* setupWebhook(url.hostname);
     } else if (url.pathname === "/delete") {
-      yield* deleteWebhook();
+      yield* deleteWebhook;
     } else if (url.pathname === "/set-command") {
-      yield* setCommands();
+      yield* setCommands;
     } else if (url.pathname === "/update") {
       const update = (yield* Effect.tryPromise({
         try: () => request.json() as Promise<Update>,

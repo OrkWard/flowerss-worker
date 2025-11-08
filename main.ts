@@ -19,7 +19,7 @@ Deno.serve({ port: 8787, hostname: "localhost" }, async (req) => {
 Deno.cron("Fetch rss", "* * * * *", async () => {
   console.log("Start cronjob...");
   const program = pipe(
-    handleCronjob(),
+    handleCronjob,
     Effect.catchAll((error) => {
       console.error(error);
       return Effect.succeed(new Response("error, check log"));

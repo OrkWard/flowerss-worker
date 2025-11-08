@@ -6,17 +6,16 @@ export interface User {
   first_name: string;
 }
 
-export const getUsers = () =>
-  pipe(
-    runQuery("getUsers", async (kv) => {
-      const users = await kv.get<User[]>(["users"]);
-      return users.value ?? [];
-    }),
-  );
+export const getUsers = pipe(
+  runQuery("getUsers", async (kv) => {
+    const users = await kv.get<User[]>(["users"]);
+    return users.value ?? [];
+  }),
+);
 
 export const getUser = (id: number) =>
   pipe(
-    getUsers(),
+    getUsers,
     Effect.map((users) => users.find((user) => user.id === id)),
   );
 
