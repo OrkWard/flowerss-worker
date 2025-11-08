@@ -6,7 +6,12 @@ import {
   deleteSubscribe,
   getSubscribesByUserId,
 } from "../model/subscribe.ts";
-import { Effect } from "effect";
+import { Data, Effect } from "effect";
+
+class AlreadySubscribedError extends Data.TaggedError("AlreadySubscribedError")<{
+  readonly link: string;
+  readonly userId: number;
+}> {}
 
 export const fetchRss = (link: string) =>
   Effect.gen(function* () {
@@ -26,7 +31,9 @@ export const addRssSubscribe = (userId: number, link: string) =>
       source.id,
     );
     if (existingSubscribe) {
-      return yield* Effect.fail(new Error("Already subscribed to this feed"));
+      return yield* Effect.fail(
+        new AlreadySubscribedError({ link, userId }),
+      );
     }
     const subscribe = yield* createSubscribe(userId, source.id);
     return {

@@ -48,7 +48,7 @@ export const handleDocument = (message: Message.DocumentMessage) =>
               addRssSubscribe(message.chat.id, subscribe.trim())
             ),
           ),
-        { concurrency: "inherit" },
+        { concurrency: "unbounded" },
       )
     ),
     Effect.andThen(callTelegram("sendMessage", {

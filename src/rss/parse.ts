@@ -27,13 +27,11 @@ export type FeedItem = {
 
 export class ParseError extends Data.TaggedError("ParseError")<{
   readonly message: string;
-  readonly context?: string;
+  readonly context?: unknown;
 }> {}
 
 export class UnsupportedFormatError
-  extends Data.TaggedError("UnsupportedFormatError")<{
-    readonly message: string;
-  }> {}
+  extends Data.TaggedError("UnsupportedFormatError") {}
 
 export type FeedParseError = ParseError | UnsupportedFormatError;
 
@@ -71,7 +69,10 @@ const parseRss = (xml: any): Effect.Effect<Feed, ParseError> =>
       : [];
     if (!items.length) {
       return yield* Effect.fail(
-        new ParseError({ message: `Invalid RSS: missing item [${title}]` }),
+        new ParseError({
+          message: "Invalid RSS: missing item",
+          context: { title },
+        }),
       );
     }
 
@@ -85,21 +86,24 @@ const parseRss = (xml: any): Effect.Effect<Feed, ParseError> =>
           if (!itemTitle) {
             return yield* Effect.fail(
               new ParseError({
-                message: `Invalid RSS item: missing title [${title}]`,
+                message: "Invalid RSS item: missing title",
+                context: { title },
               }),
             );
           }
           if (!itemLink) {
             return yield* Effect.fail(
               new ParseError({
-                message: `Invalid RSS item: missing link [${title}]`,
+                message: "Invalid RSS item: missing link",
+                context: { title },
               }),
             );
           }
           if (!itemPubDate) {
             return yield* Effect.fail(
               new ParseError({
-                message: `Invalid RSS item: missing pubDate [${title}]`,
+                message: "Invalid RSS item: missing pubDate",
+                context: { title },
               }),
             );
           }
@@ -142,7 +146,10 @@ const parseAtom = (xml: any): Effect.Effect<Feed, ParseError> =>
 
     if (!entries.length) {
       return yield* Effect.fail(
-        new ParseError({ message: `Invalid RSS: missing item [${title}]` }),
+        new ParseError({
+          message: "Invalid RSS: missing item",
+          context: { title },
+        }),
       );
     }
 
@@ -153,7 +160,8 @@ const parseAtom = (xml: any): Effect.Effect<Feed, ParseError> =>
           if (!entryTitle) {
             return yield* Effect.fail(
               new ParseError({
-                message: `Invalid Atom entry: missing title [${title}]`,
+                message: "Invalid Atom entry: missing title",
+                context: { title },
               }),
             );
           }
@@ -171,7 +179,8 @@ const parseAtom = (xml: any): Effect.Effect<Feed, ParseError> =>
           if (!entryLink) {
             return yield* Effect.fail(
               new ParseError({
-                message: `Invalid Atom entry: missing link [${title}]`,
+                message: "Invalid Atom entry: missing link",
+                context: { title },
               }),
             );
           }
@@ -185,7 +194,8 @@ const parseAtom = (xml: any): Effect.Effect<Feed, ParseError> =>
           if (!pubDate) {
             return yield* Effect.fail(
               new ParseError({
-                message: `Invalid Atom entry: missing pubDate [${title}]`,
+                message: "Invalid Atom entry: missing pubDate",
+                context: { title },
               }),
             );
           }
@@ -225,8 +235,6 @@ export const tryParseRssOrAtom = (
     }
 
     return yield* Effect.fail(
-      new UnsupportedFormatError({
-        message: "Unsupported feed format: must be RSS 2.0 or Atom 1.0",
-      }),
+      new UnsupportedFormatError(),
     );
   });
