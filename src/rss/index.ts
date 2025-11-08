@@ -6,13 +6,7 @@ import {
   deleteSubscribe,
   getSubscribesByUserId,
 } from "../model/subscribe.ts";
-import { Data, Effect } from "effect";
-
-class AlreadySubscribedError
-  extends Data.TaggedError("AlreadySubscribedError")<{
-    readonly link: string;
-    readonly userId: number;
-  }> {}
+import { Effect } from "effect";
 
 export const fetchRss = (link: string) =>
   Effect.gen(function* () {
