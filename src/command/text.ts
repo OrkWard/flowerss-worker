@@ -2,7 +2,7 @@ import { Message } from "@telegraf/types";
 import { addRssSubscribe, removeRssSubscribe } from "../rss/index.ts";
 import { getSubscribesByUserId } from "../model/subscribe.ts";
 import { getSourceById } from "../model/source.ts";
-import { callTelegram } from "../telegram/index.ts";
+import { callTelegram, escapeMarkdownV2 } from "../telegram/index.ts";
 import { Effect } from "effect";
 
 const ping = (message: Message.TextMessage) =>
@@ -61,8 +61,10 @@ const list = (message: Message.TextMessage) =>
     let text = "";
     for (const sourceId of subscribes) {
       const source = (yield* getSourceById(sourceId))!;
-      text += `\\[${sourceId}\\] `;
-      text += `[${source.title}](${source.link})`;
+      text += escapeMarkdownV2(`[${sourceId}] `);
+      text += `[${escapeMarkdownV2(source.title)}](${
+        escapeMarkdownV2(source.link)
+      })`;
       text += "\n";
     }
 

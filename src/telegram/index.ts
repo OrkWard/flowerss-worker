@@ -8,12 +8,12 @@ type Response<T extends keyof ApiMethods<File>> = ApiMethods<File>[T] extends //
 (...args: any[]) => infer P ? P
   : never;
 
-export const BASE_URL = `http://${
-  Deno.env.get("telegram_api_host") ?? "api.telegram.org"
+export const BASE_URL = `${
+  Deno.env.get("telegram_api_origin") ?? "https://api.telegram.org"
 }/bot${Deno.env.get("bot_token")}/`;
 
-export const FILE_BASE_URL = `https://${
-  Deno.env.get("telegram_api_host") ?? "api.telegram.org"
+export const FILE_BASE_URL = `${
+  Deno.env.get("telegram_api_origin") ?? "https://api.telegram.org"
 }/file/bot${Deno.env.get("bot_token")}/`;
 
 export class TgNetworkError extends Data.TaggedError("TgNetworkError")<{
@@ -85,7 +85,7 @@ export const getTelegramFile = (file_path: string) =>
   Effect.gen(function* () {
     const response = yield* Effect.tryPromise({
       try: () => fetch(FILE_BASE_URL + file_path),
-      catch: (error) => new TgNetworkError({ error, api: "file" + file_path }),
+      catch: (error) => new TgNetworkError({ error, api: "file/" + file_path }),
     });
 
     if (!response.ok) {
@@ -97,7 +97,7 @@ export const getTelegramFile = (file_path: string) =>
           body,
           status: response.status,
           statusText: response.statusText,
-          api: "file" + file_path,
+          api: "file/" + file_path,
         }),
       );
     }
@@ -105,7 +105,7 @@ export const getTelegramFile = (file_path: string) =>
     return yield* Effect.tryPromise({
       try: () => response.blob(),
       catch: (error) =>
-        new TgBodyParseError({ error, api: "file" + file_path }),
+        new TgBodyParseError({ error, api: "file/" + file_path }),
     });
   });
 

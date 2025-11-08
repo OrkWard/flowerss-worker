@@ -27,28 +27,29 @@ const handleUpdate = (update: Update) =>
           continue;
         }
 
+        yield* Effect.logInfo(
+          `Handle ${def.command} command for chat: ${update.message.chat.id}`,
+          { text: update.message.text },
+        );
+
         return yield* def.handler(update.message).pipe(
-          Effect.match({
-            onSuccess: () => Effect.void,
-            onFailure: (errors) =>
-              callTelegram("sendMessage", {
-                chat_id: update.message.chat.id,
-                text: "Something error, see log",
-              }).pipe(() => Effect.fail(errors)),
-          }),
+          Effect.tapError(() =>
+            callTelegram("sendMessage", {
+              chat_id: update.message.chat.id,
+              text: "Something error, see log",
+            })
+          ),
         );
       }
     }
     if ("document" in update.message) {
       return yield* handleDocument(update.message).pipe(
-        Effect.match({
-          onSuccess: () => Effect.void,
-          onFailure: (errors) =>
-            callTelegram("sendMessage", {
-              chat_id: update.message.chat.id,
-              text: "Something error, see log",
-            }).pipe(() => Effect.fail(errors)),
-        }),
+        Effect.tapError(() =>
+          callTelegram("sendMessage", {
+            chat_id: update.message.chat.id,
+            text: "Something error, see log",
+          })
+        ),
       );
     }
   });
