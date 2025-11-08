@@ -1,3 +1,7 @@
+/**
+ * KV Schema:
+ * - ["user_preferences"]: Record<number, UserPreference>
+ */
 import { Effect, pipe } from "effect";
 import { runQuery } from "./utils.ts";
 

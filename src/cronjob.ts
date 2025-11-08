@@ -1,19 +1,21 @@
-import { Effect, pipe } from "effect";
+import { Console, Effect, pipe } from "effect";
 import { getAllSources, renewSource } from "./model/source.ts";
 import { fetchRss } from "./rss/index.ts";
 import { getUsers } from "./model/user.ts";
 import { getSubscribesByUserId } from "./model/subscribe.ts";
-import { callTelegram } from "./telegram/index.ts";
+import { callTelegram, escapeMarkdownV2 } from "./telegram/index.ts";
 import { FeedItem } from "./rss/parse.ts";
 
 function formatFeed(feedItem: FeedItem, sourceTitle: string) {
-  const title = `*${sourceTitle}* ${
-    new Date(feedItem.pubDate).toLocaleDateString()
+  const title = `*${escapeMarkdownV2(sourceTitle)}* ${
+    escapeMarkdownV2(new Date(feedItem.pubDate).toLocaleDateString())
   }`;
-  const desc = `-------- Description --------
+  const desc = escapeMarkdownV2(`-------- Description --------
 ${feedItem.description}
--------- Description --------`;
-  const link = `[${feedItem.title}](${feedItem.link})`;
+---------- Link ----------`);
+  const link = `[${escapeMarkdownV2(feedItem.title)}](${
+    escapeMarkdownV2(feedItem.link)
+  })`;
 
   return [title, desc, link].join("\n");
 }
@@ -25,6 +27,7 @@ const updateSource = pipe(
     Effect.all(allSources.map((source) =>
       Effect.gen(function* () {
         const feed = yield* fetchRss(source.link);
+        // yield* Console.log(feed);
         if (feed.lastPub > source.update_at) {
           yield* renewSource(source.id, feed.lastPub);
         }
@@ -39,6 +42,7 @@ const updateSource = pipe(
 
 export const handleCronjob = pipe(
   Effect.zip(getUsers, updateSource),
+  // Effect.tap(([users, updateSource]) => Console.log(users, updateSource)),
   Effect.flatMap(([users, updatedSources]) =>
     Effect.forEach(users, (user) =>
       pipe(

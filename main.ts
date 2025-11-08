@@ -3,6 +3,8 @@ import { KV } from "./src/service.ts";
 import { handleRequest } from "./src/handler.ts";
 import { handleCronjob } from "./src/cronjob.ts";
 
+const kv = await Deno.openKv();
+
 Deno.serve({ port: 8787, hostname: "localhost" }, async (req) => {
   const program = pipe(
     handleRequest(req),
@@ -10,7 +12,7 @@ Deno.serve({ port: 8787, hostname: "localhost" }, async (req) => {
       console.error(error);
       return Effect.succeed(new Response("error, check log"));
     }),
-    Effect.provideService(KV, { kv: await Deno.openKv() }),
+    Effect.provideService(KV, { kv }),
   );
 
   return await Effect.runPromise(program);
@@ -24,7 +26,7 @@ Deno.cron("Fetch rss", "* * * * *", async () => {
       console.error(error);
       return Effect.succeed(new Response("error, check log"));
     }),
-    Effect.provideService(KV, { kv: await Deno.openKv() }),
+    Effect.provideService(KV, { kv }),
   );
 
   await Effect.runPromise(program);

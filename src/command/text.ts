@@ -1,8 +1,8 @@
 import { Message } from "@telegraf/types";
-import { addRssSubscribe, removeRssSubscribe } from "./rss/index.ts";
-import { getSubscribesByUserId } from "./model/subscribe.ts";
-import { getSourceById } from "./model/source.ts";
-import { callTelegram } from "./telegram/index.ts";
+import { addRssSubscribe, removeRssSubscribe } from "../rss/index.ts";
+import { getSubscribesByUserId } from "../model/subscribe.ts";
+import { getSourceById } from "../model/source.ts";
+import { callTelegram } from "../telegram/index.ts";
 import { Effect } from "effect";
 
 const ping = (message: Message.TextMessage) =>
@@ -109,7 +109,8 @@ const importCmd = (message: Message.TextMessage) =>
   Effect.gen(function* () {
     yield* callTelegram("sendMessage", {
       chat_id: message.chat.id,
-      text: "Not implemented yet",
+      text: "Send a file with name `rss`",
+      parse_mode: "MarkdownV2",
     });
   });
 
@@ -121,7 +122,7 @@ const exportCmd = (message: Message.TextMessage) =>
     });
   });
 
-export const commandDefinition = [
+export const textCommand = [
   {
     command: "ping",
     description: "打个招呼",

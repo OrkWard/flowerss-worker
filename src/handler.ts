@@ -1,7 +1,8 @@
 import type { Update } from "@telegraf/types";
 import { Data, Effect } from "effect";
 import { callTelegram } from "./telegram/index.ts";
-import { commandDefinition } from "./command.ts";
+import { textCommand } from "./command/text.ts";
+import { handleDocument } from "./command/document.ts";
 import { getUser } from "./model/user.ts";
 
 class UpdateHandlerError extends Data.TaggedError("UpdateHandlerError")<{
@@ -21,21 +22,34 @@ const handleUpdate = (update: Update) =>
     }
 
     if ("text" in update.message) {
-      for (const def of commandDefinition) {
+      for (const def of textCommand) {
         if (!update.message.text.match(new RegExp(`^/${def.command}`))) {
           continue;
         }
 
-        yield* def.handler(update.message).pipe(
-          Effect.catchAll((errors) =>
+        return yield* def.handler(update.message).pipe(
+          Effect.match({
+            onSuccess: () => Effect.void,
+            onFailure: (errors) =>
+              callTelegram("sendMessage", {
+                chat_id: update.message.chat.id,
+                text: "Something error, see log",
+              }).pipe(() => Effect.fail(errors)),
+          }),
+        );
+      }
+    }
+    if ("document" in update.message) {
+      return yield* handleDocument(update.message).pipe(
+        Effect.match({
+          onSuccess: () => Effect.void,
+          onFailure: (errors) =>
             callTelegram("sendMessage", {
               chat_id: update.message.chat.id,
               text: "Something error, see log",
-            }).pipe(() => Effect.fail(errors))
-          ),
-        );
-        return;
-      }
+            }).pipe(() => Effect.fail(errors)),
+        }),
+      );
     }
   });
 
@@ -52,7 +66,7 @@ const deleteWebhook = Effect.gen(function* () {
 });
 
 const setCommands = Effect.gen(function* () {
-  yield* callTelegram("setMyCommands", { commands: commandDefinition });
+  yield* callTelegram("setMyCommands", { commands: textCommand });
 });
 
 export const handleRequest = (request: Request) =>

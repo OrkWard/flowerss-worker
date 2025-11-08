@@ -8,9 +8,13 @@ type Response<T extends keyof ApiMethods<File>> = ApiMethods<File>[T] extends //
 (...args: any[]) => infer P ? P
   : never;
 
-const BASE_URL = `http://${
+export const BASE_URL = `http://${
   Deno.env.get("telegram_api_host") ?? "api.telegram.org"
 }/bot${Deno.env.get("bot_token")}/`;
+
+export const FILE_BASE_URL = `https://${
+  Deno.env.get("telegram_api_host") ?? "api.telegram.org"
+}/file/bot${Deno.env.get("bot_token")}/`;
 
 export class TgNetworkError extends Data.TaggedError("TgNetworkError")<{
   readonly error: unknown;
@@ -76,3 +80,60 @@ export const callTelegram = <T extends keyof ApiMethods<File>>(
 
     return apiResponse.result;
   });
+
+export const getTelegramFile = (file_path: string) =>
+  Effect.gen(function* () {
+    const response = yield* Effect.tryPromise({
+      try: () => fetch(FILE_BASE_URL + file_path),
+      catch: (error) => new TgNetworkError({ error, api: "file" + file_path }),
+    });
+
+    if (!response.ok) {
+      const body = yield* Effect.tryPromise(() => response.text()).pipe(
+        Effect.orElseSucceed(() => "<unable to read response body>"),
+      );
+      return yield* Effect.fail(
+        new TgResponseError({
+          body,
+          status: response.status,
+          statusText: response.statusText,
+          api: "file" + file_path,
+        }),
+      );
+    }
+
+    return yield* Effect.tryPromise({
+      try: () => response.blob(),
+      catch: (error) =>
+        new TgBodyParseError({ error, api: "file" + file_path }),
+    });
+  });
+
+/**
+ * @author asukaminato0721
+ */
+export function escapeMarkdownV2(text: string) {
+  const reservedChars = [
+    "_",
+    "*",
+    "[",
+    "]",
+    "(",
+    ")",
+    "~",
+    "`",
+    ">",
+    "#",
+    "+",
+    "-",
+    "=",
+    "|",
+    "{",
+    "}",
+    ".",
+    "!",
+  ];
+  const escapedChars = reservedChars.map((char) => "\\" + char).join("");
+  const regex = new RegExp(`([${escapedChars}])`, "g");
+  return text.replace(regex, "\\$1");
+}

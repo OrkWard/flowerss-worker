@@ -1,3 +1,7 @@
+/**
+ * KV Schema:
+ * - ["users"]: User[]
+ */
 import { Effect, pipe } from "effect";
 import { runQuery } from "./utils.ts";
 

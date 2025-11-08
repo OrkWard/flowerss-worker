@@ -1,3 +1,8 @@
+/**
+ * KV Schema:
+ * - ["source_id_counter"]: number
+ * - ["source", <id: number>]: Source
+ */
 import { pipe } from "effect";
 import { runQuery } from "./utils.ts";
 

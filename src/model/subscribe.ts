@@ -1,3 +1,7 @@
+/**
+ * KV Schema:
+ * - ["subscribes", <user_id: number>]: number[] (Array of `source_id`)
+ */
 import { Effect, pipe } from "effect";
 import { runQuery } from "./utils.ts";
 
