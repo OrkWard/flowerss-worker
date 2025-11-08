@@ -27,11 +27,11 @@ const handleUpdate = (update: Update) =>
         }
 
         yield* def.handler(update.message).pipe(
-          Effect.orElse(() =>
+          Effect.catchAll((errors) =>
             callTelegram("sendMessage", {
               chat_id: update.message.chat.id,
               text: "Something error, see log",
-            })
+            }).pipe(() => Effect.fail(errors))
           ),
         );
         return;

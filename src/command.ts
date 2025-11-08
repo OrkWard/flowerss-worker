@@ -61,7 +61,7 @@ const list = (message: Message.TextMessage) =>
     let text = "";
     for (const sourceId of subscribes) {
       const source = (yield* getSourceById(sourceId))!;
-      text += `\\[${sourceId}] `;
+      text += `\\[${sourceId}\\] `;
       text += `[${source.title}](${source.link})`;
       text += "\n";
     }
@@ -69,7 +69,7 @@ const list = (message: Message.TextMessage) =>
     yield* callTelegram("sendMessage", {
       chat_id: message.chat.id,
       text,
-      parse_mode: "Markdown",
+      parse_mode: "MarkdownV2",
     });
   });
 
