@@ -45,7 +45,9 @@ export const handleDocument = (message: Message.DocumentMessage) =>
           pipe(
             Effect.logDebug(`Adding subscription: ${subscribe}`),
             Effect.flatMap(() =>
-              addRssSubscribe(message.chat.id, subscribe.trim())
+              addRssSubscribe(message.chat.id, subscribe.trim()).pipe(
+                Effect.retry({ times: 3 }),
+              )
             ),
           ),
         { concurrency: "unbounded" },

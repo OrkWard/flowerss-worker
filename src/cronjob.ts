@@ -1,4 +1,4 @@
-import { Console, Effect, pipe } from "effect";
+import { Effect, pipe } from "effect";
 import { getAllSources, renewSource } from "./model/source.ts";
 import { fetchRss } from "./rss/index.ts";
 import { getUsers } from "./model/user.ts";
@@ -42,7 +42,6 @@ const updateSource = pipe(
 
 export const handleCronjob = pipe(
   Effect.zip(getUsers, updateSource),
-  // Effect.tap(([users, updateSource]) => Console.log(users, updateSource)),
   Effect.flatMap(([users, updatedSources]) =>
     Effect.forEach(users, (user) =>
       pipe(
