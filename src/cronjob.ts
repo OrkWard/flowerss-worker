@@ -10,14 +10,11 @@ function formatFeed(feedItem: FeedItem, sourceTitle: string) {
   const title = `*${escapeMarkdownV2(sourceTitle)}* ${
     escapeMarkdownV2(new Date(feedItem.pubDate).toLocaleDateString())
   }`;
-  const desc = escapeMarkdownV2(`-------- Description --------
-${feedItem.description}
----------- Link ----------`);
   const link = `[${escapeMarkdownV2(feedItem.title)}](${
     escapeMarkdownV2(feedItem.link)
   })`;
 
-  return [title, desc, link].join("\n");
+  return [title, link].join("\n");
 }
 
 // 更新订阅，返回更新后的订阅信息
