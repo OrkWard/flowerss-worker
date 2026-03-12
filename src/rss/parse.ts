@@ -31,7 +31,9 @@ export class ParseError extends Data.TaggedError("ParseError")<{
 }> {}
 
 export class UnsupportedFormatError
-  extends Data.TaggedError("UnsupportedFormatError") {}
+  extends Data.TaggedError("UnsupportedFormatError")<{
+    readonly context?: unknown;
+  }> {}
 
 export type FeedParseError = ParseError | UnsupportedFormatError;
 
@@ -51,14 +53,26 @@ const parseRss = (xml: any): Effect.Effect<Feed, ParseError> =>
 
     if (!channel) {
       return yield* Effect.fail(
-        new ParseError({ message: "Invalid RSS: missing channel" }),
+        new ParseError({
+          message: "Invalid RSS: missing channel",
+          context: {
+            format: "rss",
+            rssKeys: Object.keys(xml.rss ?? {}),
+          },
+        }),
       );
     }
 
     const title = channel.title?.["#text"];
     if (!title) {
       return yield* Effect.fail(
-        new ParseError({ message: "Invalid RSS: missing title" }),
+        new ParseError({
+          message: "Invalid RSS: missing title",
+          context: {
+            format: "rss",
+            channelKeys: Object.keys(channel ?? {}),
+          },
+        }),
       );
     }
 
@@ -71,7 +85,11 @@ const parseRss = (xml: any): Effect.Effect<Feed, ParseError> =>
       return yield* Effect.fail(
         new ParseError({
           message: "Invalid RSS: missing item",
-          context: { title },
+          context: {
+            format: "rss",
+            title,
+            channelKeys: Object.keys(channel ?? {}),
+          },
         }),
       );
     }
@@ -134,7 +152,13 @@ const parseAtom = (xml: any): Effect.Effect<Feed, ParseError> =>
 
     if (!title) {
       return yield* Effect.fail(
-        new ParseError({ message: "Invalid Atom: missing title" }),
+        new ParseError({
+          message: "Invalid Atom: missing title",
+          context: {
+            format: "atom",
+            feedKeys: Object.keys(xml.feed ?? {}),
+          },
+        }),
       );
     }
 
@@ -148,7 +172,11 @@ const parseAtom = (xml: any): Effect.Effect<Feed, ParseError> =>
       return yield* Effect.fail(
         new ParseError({
           message: "Invalid RSS: missing item",
-          context: { title },
+          context: {
+            format: "atom",
+            title,
+            feedKeys: Object.keys(xml.feed ?? {}),
+          },
         }),
       );
     }
@@ -235,6 +263,10 @@ export const tryParseRssOrAtom = (
     }
 
     return yield* Effect.fail(
-      new UnsupportedFormatError(),
+      new UnsupportedFormatError({
+        context: {
+          rootKeys: Object.keys(xml ?? {}),
+        },
+      }),
     );
   });

@@ -1,5 +1,9 @@
 import { get } from "./fetch.ts";
-import { tryParseRssOrAtom } from "./parse.ts";
+import {
+  ParseError,
+  tryParseRssOrAtom,
+  UnsupportedFormatError,
+} from "./parse.ts";
 import { createSource, getSourceByLink } from "../model/source.ts";
 import {
   createSubscribe,
@@ -11,7 +15,37 @@ import { Effect } from "effect";
 export const fetchRss = (link: string) =>
   Effect.gen(function* () {
     const content = yield* get(link);
-    return yield* tryParseRssOrAtom(content);
+    return yield* Effect.mapError(tryParseRssOrAtom(content), (error) => {
+      const baseContext = {
+        link,
+        contentLength: content.length,
+      };
+
+      if (error instanceof ParseError) {
+        return new ParseError({
+          message: error.message,
+          context: {
+            ...(error.context && typeof error.context === "object"
+              ? error.context as Record<string, unknown>
+              : {}),
+            ...baseContext,
+          },
+        });
+      }
+
+      if (error instanceof UnsupportedFormatError) {
+        return new UnsupportedFormatError({
+          context: {
+            ...(error.context && typeof error.context === "object"
+              ? error.context as Record<string, unknown>
+              : {}),
+            ...baseContext,
+          },
+        });
+      }
+
+      return error;
+    });
   });
 
 export const addRssSubscribe = (userId: number, link: string) =>
