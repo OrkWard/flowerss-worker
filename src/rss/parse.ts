@@ -71,15 +71,7 @@ function parseRss(xml: any): Result<Feed, ParseError> {
     );
   }
 
-  const title = channel.title?.["#text"];
-  if (!title) {
-    return err(
-      new ParseError("Invalid RSS: missing title", {
-        format: "rss",
-        channelKeys: Object.keys(channel ?? {}),
-      }),
-    );
-  }
+  const title = channel.title?.["#text"] || "(Untitled)";
 
   const items: any[] = Array.isArray(channel.item)
     ? channel.item
@@ -98,12 +90,12 @@ function parseRss(xml: any): Result<Feed, ParseError> {
 
   const parsedItems: FeedItem[] = [];
   for (const item of items) {
-    const itemTitle = item.title?.["#text"];
+    const itemTitle = item.title?.["#text"] || "(Untitled)";
     const itemLink = item.link?.["#text"];
     const itemPubDate = item.pubDate?.["#text"];
 
-    if (!itemTitle) {
-      return err(new ParseError("Invalid RSS item: missing title", { title }));
+    if (!itemLink) {
+      return err(new ParseError("Invalid RSS item: missing link", { title }));
     }
     if (!itemLink) {
       return err(new ParseError("Invalid RSS item: missing link", { title }));
@@ -132,16 +124,7 @@ function parseRss(xml: any): Result<Feed, ParseError> {
 }
 
 function parseAtom(xml: any): Result<Feed, ParseError> {
-  const title = xml.feed.title?.["#text"];
-
-  if (!title) {
-    return err(
-      new ParseError("Invalid Atom: missing title", {
-        format: "atom",
-        feedKeys: Object.keys(xml.feed ?? {}),
-      }),
-    );
-  }
+  const title = xml.feed.title?.["#text"] || "(Untitled)";
 
   const entries: any[] = Array.isArray(xml.feed.entry)
     ? xml.feed.entry
@@ -161,12 +144,7 @@ function parseAtom(xml: any): Result<Feed, ParseError> {
 
   const parsedItems: FeedItem[] = [];
   for (const entry of entries) {
-    const entryTitle = entry.title?.["#text"];
-    if (!entryTitle) {
-      return err(
-        new ParseError("Invalid Atom entry: missing title", { title }),
-      );
-    }
+    const entryTitle = entry.title?.["#text"] || "(Untitled)";
 
     let entryLink = null;
     if (Array.isArray(entry.link)) {
