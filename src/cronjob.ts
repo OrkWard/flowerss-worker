@@ -1,10 +1,10 @@
-import { Effect, pipe } from "effect";
 import { getAllSources, renewSource } from "./model/source.ts";
 import { fetchRss } from "./rss/index.ts";
 import { getUsers } from "./model/user.ts";
 import { getSubscribesByUserId } from "./model/subscribe.ts";
 import { callTelegram, escapeMarkdownV2 } from "./telegram/index.ts";
-import { FeedItem } from "./rss/parse.ts";
+import type { FeedItem } from "./rss/parse.ts";
+import type { Source } from "./model/source.ts";
 
 function formatFeed(feedItem: FeedItem, sourceTitle: string) {
   const title = `*${escapeMarkdownV2(sourceTitle)}* ${
@@ -17,51 +17,57 @@ function formatFeed(feedItem: FeedItem, sourceTitle: string) {
   return [title, link].join("\n");
 }
 
-// 更新订阅，返回更新后的订阅信息
-const updateSource = pipe(
-  getAllSources,
-  Effect.flatMap((allSources) =>
-    Effect.all(allSources.map((source) =>
-      Effect.gen(function* () {
-        const feed = yield* fetchRss(source.link);
-        // yield* Console.log(feed);
-        if (feed.lastPub > source.update_at) {
-          yield* renewSource(source.id, feed.lastPub);
-        }
-        return [
-          source,
-          feed.items.filter((item) => item.pubDate > source.update_at),
-        ] as const;
-      })
-    ))
-  ),
-);
+async function updateSources(): Promise<
+  readonly (readonly [Source, FeedItem[]])[]
+> {
+  const allSources = await getAllSources();
 
-export const handleCronjob = pipe(
-  Effect.zip(getUsers, updateSource),
-  Effect.flatMap(([users, updatedSources]) =>
-    Effect.forEach(users, (user) =>
-      pipe(
-        getSubscribesByUserId(user.id),
-        Effect.flatMap((subscribes) =>
-          Effect.forEach(
-            updatedSources
-              .filter(([source]) => subscribes.includes(source.id))
-              .flatMap(([source, feeds]) =>
-                feeds.map((feed) => [source, feed] as const)
-              ),
-            ([source, feed]) =>
-              callTelegram("sendMessage", {
-                chat_id: user.id,
-                text: formatFeed(feed, source.title),
-                parse_mode: "MarkdownV2",
-              }),
-            {
-              concurrency: "unbounded",
-              discard: true,
-            },
-          )
-        ),
-      ), { concurrency: 5, discard: true })
-  ),
-);
+  return await Promise.all(
+    allSources.map(async (source) => {
+      const feedResult = await fetchRss(source.link);
+      if (feedResult.isErr()) {
+        throw feedResult.error;
+      }
+
+      const feed = feedResult.value;
+      if (feed.lastPub > source.update_at) {
+        await renewSource(source.id, feed.lastPub);
+      }
+
+      return [
+        source,
+        feed.items.filter((item) => item.pubDate > source.update_at),
+      ] as const;
+    }),
+  );
+}
+
+export async function handleCronjob() {
+  const [users, updatedSources] = await Promise.all([
+    getUsers(),
+    updateSources(),
+  ]);
+
+  for (const user of users) {
+    const subscribes = await getSubscribesByUserId(user.id);
+    const userFeeds = updatedSources
+      .filter(([source]) => subscribes.includes(source.id))
+      .flatMap(([source, feeds]) =>
+        feeds.map((feed) => [source, feed] as const)
+      );
+
+    await Promise.all(
+      userFeeds.map(async ([source, feed]) => {
+        const telegramResult = await callTelegram("sendMessage", {
+          chat_id: user.id,
+          text: formatFeed(feed, source.title),
+          parse_mode: "MarkdownV2",
+        });
+
+        if (telegramResult.isErr()) {
+          throw telegramResult.error;
+        }
+      }),
+    );
+  }
+}

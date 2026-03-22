@@ -1,128 +1,136 @@
-import { Message } from "@telegraf/types";
+import type { Message } from "@telegraf/types";
 import { addRssSubscribe, removeRssSubscribe } from "../rss/index.ts";
 import { getSubscribesByUserId } from "../model/subscribe.ts";
 import { getSourceById } from "../model/source.ts";
-import { callTelegram, escapeMarkdownV2 } from "../telegram/index.ts";
-import { Effect } from "effect";
+import {
+  callTelegram,
+  escapeMarkdownV2,
+  type TgError,
+} from "../telegram/index.ts";
+import type { Result } from "neverthrow";
 
-const ping = (message: Message.TextMessage) =>
-  callTelegram("sendMessage", {
-    chat_id: message.chat.id,
-    text: "pong",
-  });
+export type TextCommandHandler = (
+  message: Message.TextMessage,
+) => Promise<void>;
 
-const add = (message: Message.TextMessage) =>
-  Effect.gen(function* () {
-    const [_, link] = message.text.match(/^\/add(.*)/) || [];
-    if (!link) {
-      yield* callTelegram("sendMessage", {
+async function unwrapOrThrow<T>(
+  resultPromise: Promise<Result<T, TgError>>,
+): Promise<T> {
+  const result = await resultPromise;
+  if (result.isErr()) {
+    throw result.error;
+  }
+  return result.value;
+}
+
+const ping: TextCommandHandler = async (message) => {
+  await unwrapOrThrow(
+    callTelegram("sendMessage", {
+      chat_id: message.chat.id,
+      text: "pong",
+    }),
+  );
+};
+
+const add: TextCommandHandler = async (message) => {
+  const [_, link] = message.text.match(/^\/add(.*)/) || [];
+  if (!link) {
+    await unwrapOrThrow(
+      callTelegram("sendMessage", {
         chat_id: message.chat.id,
         text: "Usage: /add [rss subscribe link]",
-      });
-      return;
-    }
+      }),
+    );
+    return;
+  }
 
-    yield* addRssSubscribe(message.chat.id, link.trim());
-    yield* callTelegram("sendMessage", {
+  const result = await addRssSubscribe(message.chat.id, link.trim());
+  if (result.isErr()) {
+    throw result.error;
+  }
+
+  await unwrapOrThrow(
+    callTelegram("sendMessage", {
       chat_id: message.chat.id,
       text: "Success",
-    });
-  });
+    }),
+  );
+};
 
-const remove = (message: Message.TextMessage) =>
-  Effect.gen(function* () {
-    const [_, id] = message.text.match(/^\/remove (\d*)/) || [];
-    if (!id) {
-      yield* callTelegram("sendMessage", {
+const remove: TextCommandHandler = async (message) => {
+  const [_, id] = message.text.match(/^\/remove (\d*)/) || [];
+  if (!id) {
+    await unwrapOrThrow(
+      callTelegram("sendMessage", {
         chat_id: message.chat.id,
         text: "Usage: /remove [subscribe id]",
-      });
-      return;
-    }
+      }),
+    );
+    return;
+  }
 
-    yield* removeRssSubscribe(message.chat.id, parseInt(id));
-    yield* callTelegram("sendMessage", {
+  await removeRssSubscribe(message.chat.id, parseInt(id, 10));
+  await unwrapOrThrow(
+    callTelegram("sendMessage", {
       chat_id: message.chat.id,
       text: "Success",
-    });
-  });
+    }),
+  );
+};
 
-const list = (message: Message.TextMessage) =>
-  Effect.gen(function* () {
-    const subscribes = yield* getSubscribesByUserId(message.chat.id);
-    if (!subscribes.length) {
-      yield* callTelegram("sendMessage", {
+const list: TextCommandHandler = async (message) => {
+  const subscribes = await getSubscribesByUserId(message.chat.id);
+  if (!subscribes.length) {
+    await unwrapOrThrow(
+      callTelegram("sendMessage", {
         chat_id: message.chat.id,
         text: "Not subscribe found",
-      });
-      return;
+      }),
+    );
+    return;
+  }
+
+  let text = "";
+  for (const sourceId of subscribes) {
+    const source = await getSourceById(sourceId);
+    if (!source) {
+      continue;
     }
 
-    let text = "";
-    for (const sourceId of subscribes) {
-      const source = (yield* getSourceById(sourceId))!;
-      text += escapeMarkdownV2(`[${sourceId}] `);
-      text += `[${escapeMarkdownV2(source.title)}](${
-        escapeMarkdownV2(source.link)
-      })`;
-      text += "\n";
-    }
+    text += escapeMarkdownV2(`[${sourceId}] `);
+    text += `[${escapeMarkdownV2(source.title)}](${
+      escapeMarkdownV2(source.link)
+    })`;
+    text += "\n";
+  }
 
-    yield* callTelegram("sendMessage", {
+  await unwrapOrThrow(
+    callTelegram("sendMessage", {
       chat_id: message.chat.id,
       text,
       parse_mode: "MarkdownV2",
-    });
-  });
+    }),
+  );
+};
 
-const check = (message: Message.TextMessage) =>
-  Effect.gen(function* () {
-    yield* callTelegram("sendMessage", {
+const notImplemented: TextCommandHandler = async (message) => {
+  await unwrapOrThrow(
+    callTelegram("sendMessage", {
       chat_id: message.chat.id,
       text: "Not implemented yet",
-    });
-  });
+    }),
+  );
+};
 
-const pause = (message: Message.TextMessage) =>
-  Effect.gen(function* () {
-    yield* callTelegram("sendMessage", {
-      chat_id: message.chat.id,
-      text: "Not implemented yet",
-    });
-  });
-
-const activate = (message: Message.TextMessage) =>
-  Effect.gen(function* () {
-    yield* callTelegram("sendMessage", {
-      chat_id: message.chat.id,
-      text: "Not implemented yet",
-    });
-  });
-
-const update = (message: Message.TextMessage) =>
-  Effect.gen(function* () {
-    yield* callTelegram("sendMessage", {
-      chat_id: message.chat.id,
-      text: "Not implemented yet",
-    });
-  });
-
-const importCmd = (message: Message.TextMessage) =>
-  Effect.gen(function* () {
-    yield* callTelegram("sendMessage", {
+const importCmd: TextCommandHandler = async (message) => {
+  await unwrapOrThrow(
+    callTelegram("sendMessage", {
       chat_id: message.chat.id,
       text: "Send a file with name `rss`",
       parse_mode: "MarkdownV2",
-    });
-  });
-
-const exportCmd = (message: Message.TextMessage) =>
-  Effect.gen(function* () {
-    yield* callTelegram("sendMessage", {
-      chat_id: message.chat.id,
-      text: "Not implemented yet",
-    });
-  });
+    }),
+  );
+};
 
 export const textCommand = [
   {
@@ -148,22 +156,22 @@ export const textCommand = [
   {
     command: "check",
     description: "检查 RSS 订阅状态",
-    handler: check,
+    handler: notImplemented,
   },
   {
     command: "pause",
     description: "暂停查询最新订阅",
-    handler: pause,
+    handler: notImplemented,
   },
   {
     command: "activate",
     description: "恢复查询最新订阅",
-    handler: activate,
+    handler: notImplemented,
   },
   {
     command: "update",
     description: "手动查询最新订阅",
-    handler: update,
+    handler: notImplemented,
   },
   {
     command: "import",
@@ -173,6 +181,6 @@ export const textCommand = [
   {
     command: "export",
     description: "导出",
-    handler: exportCmd,
+    handler: notImplemented,
   },
-];
+] as const;

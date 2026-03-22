@@ -1,11 +1,11 @@
 import type { ApiError, ApiMethods, ApiResponse } from "@telegraf/types";
-import { Data, Effect } from "effect";
+import { err, ok, type Result } from "neverthrow";
 
-type Args<T extends keyof ApiMethods<File>> = ApiMethods<File>[T] extends // deno-lint-ignore no-explicit-any
-(...args: infer P) => any ? P[0]
+type Args<T extends keyof ApiMethods<File>> = ApiMethods<File>[T] extends
+  (...args: infer P) => unknown ? P[0]
   : never;
-type Response<T extends keyof ApiMethods<File>> = ApiMethods<File>[T] extends // deno-lint-ignore no-explicit-any
-(...args: any[]) => infer P ? P
+type Response<T extends keyof ApiMethods<File>> = ApiMethods<File>[T] extends
+  (...args: unknown[]) => infer P ? P
   : never;
 
 export const BASE_URL = `${
@@ -16,98 +16,136 @@ export const FILE_BASE_URL = `${
   Deno.env.get("telegram_api_origin") ?? "https://api.telegram.org"
 }/file/bot${Deno.env.get("bot_token")}/`;
 
-export class TgNetworkError extends Data.TaggedError("TgNetworkError")<{
-  readonly error: unknown;
-  readonly api: string;
-}> {}
+export class TgNetworkError extends Error {
+  constructor(
+    public readonly error: unknown,
+    public readonly api: string,
+  ) {
+    super(`Telegram network error for ${api}`);
+    this.name = "TgNetworkError";
+  }
+}
 
-export class TgResponseError extends Data.TaggedError("TgResponseError")<{
-  readonly status: number;
-  readonly statusText: string;
-  readonly body: string;
-  readonly api: string;
-}> {}
+export class TgResponseError extends Error {
+  constructor(
+    public readonly status: number,
+    public readonly statusText: string,
+    public readonly body: string,
+    public readonly api: string,
+  ) {
+    super(`Telegram response error ${status} ${statusText} for ${api}`);
+    this.name = "TgResponseError";
+  }
+}
 
-export class TgBodyParseError extends Data.TaggedError("TgBodyParseError")<{
-  readonly error: unknown;
-  readonly api: string;
-}> {}
+export class TgBodyParseError extends Error {
+  constructor(
+    public readonly error: unknown,
+    public readonly api: string,
+  ) {
+    super(`Telegram body parse error for ${api}`);
+    this.name = "TgBodyParseError";
+  }
+}
 
-export class TgApiError extends Data.TaggedError("TgApiError")<ApiError> {}
+export class TgApiError extends Error {
+  constructor(public readonly apiError: ApiError) {
+    super(apiError.description);
+    this.name = "TgApiError";
+  }
+}
 
-export type TgError = TgNetworkError | TgResponseError | TgBodyParseError;
+export type TgError =
+  | TgNetworkError
+  | TgResponseError
+  | TgBodyParseError
+  | TgApiError;
 
-export const callTelegram = <T extends keyof ApiMethods<File>>(
+export async function callTelegram<T extends keyof ApiMethods<File>>(
   api: T,
   params: Args<T>,
-) =>
-  Effect.gen(function* () {
-    const response = yield* Effect.tryPromise({
-      try: () =>
-        fetch(BASE_URL + api, {
-          method: "POST",
-          body: JSON.stringify(params),
-          headers: {
-            "Content-Type": "application/json",
-            Accept: "application/json",
-          },
-        }),
-      catch: (error) => new TgNetworkError({ error, api }),
+): Promise<Result<Response<T>, TgError>> {
+  let response: globalThis.Response;
+  try {
+    response = await fetch(BASE_URL + api, {
+      method: "POST",
+      body: JSON.stringify(params),
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
     });
+  } catch (error) {
+    return err(new TgNetworkError(error, api));
+  }
 
-    if (!response.ok) {
-      const body = yield* Effect.tryPromise(() => response.text()).pipe(
-        Effect.orElseSucceed(() => "<unable to read response body>"),
-      );
-      return yield* Effect.fail(
-        new TgResponseError({
-          body,
-          status: response.status,
-          statusText: response.statusText,
-          api,
-        }),
-      );
+  if (!response.ok) {
+    let body = "<unable to read response body>";
+    try {
+      body = await response.text();
+    } catch {
+      // Ignore body read errors and keep fallback message.
     }
 
-    const apiResponse = yield* Effect.tryPromise({
-      try: () => response.json() as Promise<ApiResponse<Response<T>>>,
-      catch: (error) => new TgBodyParseError({ error, api }),
-    });
+    return err(
+      new TgResponseError(
+        response.status,
+        response.statusText,
+        body,
+        api,
+      ),
+    );
+  }
 
-    if (apiResponse.ok === false) {
-      return yield* Effect.fail(new TgApiError(apiResponse));
+  let apiResponse: ApiResponse<Response<T>>;
+  try {
+    apiResponse = await response.json() as ApiResponse<Response<T>>;
+  } catch (error) {
+    return err(new TgBodyParseError(error, api));
+  }
+
+  if (apiResponse.ok === false) {
+    return err(new TgApiError(apiResponse));
+  }
+
+  return ok(apiResponse.result);
+}
+
+export async function getTelegramFile(
+  filePath: string,
+): Promise<Result<Blob, TgError>> {
+  const api = `file/${filePath}`;
+  let response: globalThis.Response;
+  try {
+    response = await fetch(FILE_BASE_URL + filePath);
+  } catch (error) {
+    return err(new TgNetworkError(error, api));
+  }
+
+  if (!response.ok) {
+    let body = "<unable to read response body>";
+    try {
+      body = await response.text();
+    } catch {
+      // Ignore body read errors and keep fallback message.
     }
 
-    return apiResponse.result;
-  });
+    return err(
+      new TgResponseError(
+        response.status,
+        response.statusText,
+        body,
+        api,
+      ),
+    );
+  }
 
-export const getTelegramFile = (file_path: string) =>
-  Effect.gen(function* () {
-    const response = yield* Effect.tryPromise({
-      try: () => fetch(FILE_BASE_URL + file_path),
-      catch: (error) => new TgNetworkError({ error, api: "file/" + file_path }),
-    });
-
-    if (!response.ok) {
-      const body = yield* Effect.tryPromise(() => response.text()).pipe(
-        Effect.orElseSucceed(() => "<unable to read response body>"),
-      );
-      return yield* Effect.fail(
-        new TgResponseError({
-          body,
-          status: response.status,
-          statusText: response.statusText,
-          api: "file/" + file_path,
-        }),
-      );
-    }
-
-    return yield* Effect.tryPromise({
-      try: () => response.blob(),
-      catch: (error) =>
-        new TgBodyParseError({ error, api: "file/" + file_path }),
-    });
-  });
+  try {
+    return ok(await response.blob());
+  } catch (error) {
+    return err(new TgBodyParseError(error, api));
+  }
+}
 
 /**
  * @author asukaminato0721
