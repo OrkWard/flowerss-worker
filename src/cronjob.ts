@@ -24,12 +24,8 @@ async function updateSources(): Promise<
 
   return await Promise.all(
     allSources.map(async (source) => {
-      const feedResult = await fetchRss(source.link);
-      if (feedResult.isErr()) {
-        throw feedResult.error;
-      }
+      const feed = await fetchRss(source.link);
 
-      const feed = feedResult.value;
       if (feed.lastPub > source.update_at) {
         await renewSource(source.id, feed.lastPub);
       }
@@ -58,15 +54,11 @@ export async function handleCronjob() {
 
     await Promise.all(
       userFeeds.map(async ([source, feed]) => {
-        const telegramResult = await callTelegram("sendMessage", {
+        await callTelegram("sendMessage", {
           chat_id: user.id,
           text: formatFeed(feed, source.title),
           parse_mode: "MarkdownV2",
         });
-
-        if (telegramResult.isErr()) {
-          throw telegramResult.error;
-        }
       }),
     );
   }

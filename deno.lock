@@ -7,7 +7,6 @@
     "npm:@telegraf/types@*": "9.2.1",
     "npm:@types/ramda@*": "0.31.1",
     "npm:fast-xml-parser@*": "5.3.1",
-    "npm:neverthrow@*": "8.2.0",
     "npm:ramda@*": "0.32.0"
   },
   "jsr": {
@@ -25,11 +24,6 @@
     }
   },
   "npm": {
-    "@rollup/rollup-linux-x64-gnu@4.59.0": {
-      "integrity": "sha512-3AHmtQq/ppNuUspKAlvA8HtLybkDflkMuLK4DPo77DfthRb71V84/c4MlWJXixZz4uruIH4uaa07IqoAkG64fg==",
-      "os": ["linux"],
-      "cpu": ["x64"]
-    },
     "@telegraf/types@9.2.1": {
       "integrity": "sha512-GUL3imlzu78NXZc05eVI6r45VMmYET2Xww+Cfjt+RCKYy1O9jO3xcZResi62qaGkKo3lIwB4do+aGkivRhOEOA=="
     },
@@ -45,12 +39,6 @@
         "strnum"
       ],
       "bin": true
-    },
-    "neverthrow@8.2.0": {
-      "integrity": "sha512-kOCT/1MCPAxY5iUV3wytNFUMUolzuwd/VF/1KCx7kf6CutrOsTie+84zTGTpgQycjvfLdBBdvBvFLqFD2c0wkQ==",
-      "optionalDependencies": [
-        "@rollup/rollup-linux-x64-gnu"
-      ]
     },
     "ramda@0.32.0": {
       "integrity": "sha512-GQWAHhxhxWBWA8oIBr1XahFVjQ9Fic6MK9ikijfd4TZHfE2+urfk+irVlR5VOn48uwMgM+loRRBJd6Yjsbc0zQ=="
@@ -74,7 +62,6 @@
       "npm:@telegraf/types@*",
       "npm:@types/ramda@*",
       "npm:fast-xml-parser@*",
-      "npm:neverthrow@*",
       "npm:ramda@*"
     ]
   }

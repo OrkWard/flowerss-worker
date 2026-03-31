@@ -1,7 +1,7 @@
 // deno-lint-ignore-file no-explicit-any
 import { pipe } from "ramda";
 import { XMLParser } from "fast-xml-parser";
-import { err, ok, type Result } from "neverthrow";
+import { ParseError, UnsupportedFormatError } from "../errors.ts";
 
 const parser = new XMLParser({
   alwaysCreateTextNode: true,
@@ -25,23 +25,6 @@ export type FeedItem = {
   guid: string;
 };
 
-export class ParseError extends Error {
-  constructor(
-    message: string,
-    public readonly context?: unknown,
-  ) {
-    super(message);
-    this.name = "ParseError";
-  }
-}
-
-export class UnsupportedFormatError extends Error {
-  constructor(public readonly context?: unknown) {
-    super("Unsupported feed format");
-    this.name = "UnsupportedFormatError";
-  }
-}
-
 export type FeedParseError = ParseError | UnsupportedFormatError;
 
 function getLatestPubDate(items: FeedItem[]): number {
@@ -51,24 +34,22 @@ function getLatestPubDate(items: FeedItem[]): number {
   )(items);
 }
 
-function parseXml(content: string): Result<any, ParseError> {
+function parseXml(content: string): any {
   try {
-    return ok(parser.parse(content));
-  } catch (error) {
-    return err(new ParseError("Failed to parse XML", String(error)));
+    return parser.parse(content);
+  } catch (cause) {
+    throw new ParseError("Failed to parse XML", { cause: String(cause) });
   }
 }
 
-function parseRss(xml: any): Result<Feed, ParseError> {
+function parseRss(xml: any): Feed {
   const channel = xml.rss.channel;
 
   if (!channel) {
-    return err(
-      new ParseError("Invalid RSS: missing channel", {
-        format: "rss",
-        rssKeys: Object.keys(xml.rss ?? {}),
-      }),
-    );
+    throw new ParseError("Invalid RSS: missing channel", {
+      format: "rss",
+      rssKeys: Object.keys(xml.rss ?? {}),
+    });
   }
 
   const title = channel.title?.["#text"] || "(Untitled)";
@@ -79,13 +60,11 @@ function parseRss(xml: any): Result<Feed, ParseError> {
     ? [channel.item]
     : [];
   if (!items.length) {
-    return err(
-      new ParseError("Invalid RSS: missing item", {
-        format: "rss",
-        title,
-        channelKeys: Object.keys(channel ?? {}),
-      }),
-    );
+    throw new ParseError("Invalid RSS: missing item", {
+      format: "rss",
+      title,
+      channelKeys: Object.keys(channel ?? {}),
+    });
   }
 
   const parsedItems: FeedItem[] = [];
@@ -95,15 +74,10 @@ function parseRss(xml: any): Result<Feed, ParseError> {
     const itemPubDate = item.pubDate?.["#text"];
 
     if (!itemLink) {
-      return err(new ParseError("Invalid RSS item: missing link", { title }));
-    }
-    if (!itemLink) {
-      return err(new ParseError("Invalid RSS item: missing link", { title }));
+      throw new ParseError("Invalid RSS item: missing link", { title });
     }
     if (!itemPubDate) {
-      return err(
-        new ParseError("Invalid RSS item: missing pubDate", { title }),
-      );
+      throw new ParseError("Invalid RSS item: missing pubDate", { title });
     }
 
     parsedItems.push({
@@ -115,15 +89,15 @@ function parseRss(xml: any): Result<Feed, ParseError> {
     });
   }
 
-  return ok({
+  return {
     title,
     description: channel.description?.["#text"] || title,
     lastPub: getLatestPubDate(parsedItems),
     items: parsedItems,
-  });
+  };
 }
 
-function parseAtom(xml: any): Result<Feed, ParseError> {
+function parseAtom(xml: any): Feed {
   const title = xml.feed.title?.["#text"] || "(Untitled)";
 
   const entries: any[] = Array.isArray(xml.feed.entry)
@@ -133,13 +107,11 @@ function parseAtom(xml: any): Result<Feed, ParseError> {
     : [];
 
   if (!entries.length) {
-    return err(
-      new ParseError("Invalid RSS: missing item", {
-        format: "atom",
-        title,
-        feedKeys: Object.keys(xml.feed ?? {}),
-      }),
-    );
+    throw new ParseError("Invalid RSS: missing item", {
+      format: "atom",
+      title,
+      feedKeys: Object.keys(xml.feed ?? {}),
+    });
   }
 
   const parsedItems: FeedItem[] = [];
@@ -156,7 +128,7 @@ function parseAtom(xml: any): Result<Feed, ParseError> {
       entryLink = entry.link?.["@"]?.href;
     }
     if (!entryLink) {
-      return err(new ParseError("Invalid Atom entry: missing link", { title }));
+      throw new ParseError("Invalid Atom entry: missing link", { title });
     }
 
     const pubDate = entry.published?.["#text"]
@@ -165,9 +137,7 @@ function parseAtom(xml: any): Result<Feed, ParseError> {
       ? new Date(entry.updated["#text"]).getTime()
       : null;
     if (!pubDate) {
-      return err(
-        new ParseError("Invalid Atom entry: missing pubDate", { title }),
-      );
+      throw new ParseError("Invalid Atom entry: missing pubDate", { title });
     }
 
     parsedItems.push({
@@ -179,23 +149,16 @@ function parseAtom(xml: any): Result<Feed, ParseError> {
     });
   }
 
-  return ok({
+  return {
     title,
     description: xml.feed.subtitle?.["#text"] || title,
     lastPub: getLatestPubDate(parsedItems),
     items: parsedItems,
-  });
+  };
 }
 
-export function tryParseRssOrAtom(
-  content: string,
-): Result<Feed, FeedParseError> {
-  const xmlResult = parseXml(content);
-  if (xmlResult.isErr()) {
-    return xmlResult;
-  }
-
-  const xml = xmlResult.value;
+export function tryParseRssOrAtom(content: string): Feed {
+  const xml = parseXml(content);
 
   if (xml.rss) {
     return parseRss(xml);
@@ -205,9 +168,7 @@ export function tryParseRssOrAtom(
     return parseAtom(xml);
   }
 
-  return err(
-    new UnsupportedFormatError({
-      rootKeys: Object.keys(xml ?? {}),
-    }),
-  );
+  throw new UnsupportedFormatError({
+    rootKeys: Object.keys(xml ?? {}),
+  });
 }

@@ -1,22 +1,7 @@
 import type { Message } from "@telegraf/types";
-import {
-  callTelegram,
-  getTelegramFile,
-  type TgError,
-} from "../telegram/index.ts";
+import { callTelegram, getTelegramFile } from "../telegram/index.ts";
 import { addRssSubscribe } from "../rss/index.ts";
 import { pipe } from "ramda";
-import type { Result } from "neverthrow";
-
-async function unwrapOrThrow<T>(
-  resultPromise: Promise<Result<T, TgError>>,
-): Promise<T> {
-  const result = await resultPromise;
-  if (result.isErr()) {
-    throw result.error;
-  }
-  return result.value;
-}
 
 async function addSubscribeWithRetry(
   userId: number,
@@ -26,11 +11,12 @@ async function addSubscribeWithRetry(
   let lastError: unknown;
 
   for (let attempt = 0; attempt < times; attempt += 1) {
-    const result = await addRssSubscribe(userId, subscribe.trim());
-    if (result.isOk()) {
+    try {
+      await addRssSubscribe(userId, subscribe.trim());
       return;
+    } catch (error) {
+      lastError = error;
     }
-    lastError = result.error;
   }
 
   throw lastError;
@@ -41,11 +27,9 @@ export async function handleDocument(
 ): Promise<void> {
   console.info(`Handling document import for chat: ${message.chat.id}`);
 
-  const file = await unwrapOrThrow(
-    callTelegram("getFile", {
-      file_id: message.document.file_id,
-    }),
-  ) as { file_path?: string };
+  const file = await callTelegram("getFile", {
+    file_id: message.document.file_id,
+  }) as { file_path?: string };
   console.debug("Got file object from Telegram", file);
 
   if (!file.file_path) {
@@ -54,7 +38,7 @@ export async function handleDocument(
     );
   }
 
-  const blob = await unwrapOrThrow(getTelegramFile(file.file_path));
+  const blob = await getTelegramFile(file.file_path);
   console.debug("Fetched file blob", { size: blob.size, type: blob.type });
 
   const text = await blob.text();
@@ -74,10 +58,8 @@ export async function handleDocument(
     }),
   );
 
-  await unwrapOrThrow(
-    callTelegram("sendMessage", {
-      chat_id: message.chat.id,
-      text: "Success",
-    }),
-  );
+  await callTelegram("sendMessage", {
+    chat_id: message.chat.id,
+    text: "Success",
+  });
 }

@@ -5,13 +5,13 @@ import { handleDocument } from "./command/document.ts";
 import { getUser } from "./model/user.ts";
 
 async function notifyHandlerError(chatId: number) {
-  const telegramResult = await callTelegram("sendMessage", {
-    chat_id: chatId,
-    text: "Something error, see log",
-  });
-
-  if (telegramResult.isErr()) {
-    console.error(telegramResult.error);
+  try {
+    await callTelegram("sendMessage", {
+      chat_id: chatId,
+      text: "Something error, see log",
+    });
+  } catch (error) {
+    console.error(error);
   }
 }
 
@@ -57,34 +57,23 @@ async function handleUpdate(update: Update) {
 }
 
 async function setupWebhook(hostname: string) {
-  const telegramResult = await callTelegram("setWebhook", {
+  await callTelegram("setWebhook", {
     url: `https://${hostname}/update`,
     allowed_updates: ["message", "inline_query"],
   });
-
-  if (telegramResult.isErr()) {
-    throw telegramResult.error;
-  }
 }
 
 async function deleteWebhook() {
-  const telegramResult = await callTelegram("deleteWebhook", {});
-  if (telegramResult.isErr()) {
-    throw telegramResult.error;
-  }
+  await callTelegram("deleteWebhook", {});
 }
 
 async function setCommands() {
-  const telegramResult = await callTelegram("setMyCommands", {
+  await callTelegram("setMyCommands", {
     commands: textCommand.map(({ command, description }) => ({
       command,
       description,
     })),
   });
-
-  if (telegramResult.isErr()) {
-    throw telegramResult.error;
-  }
 }
 
 export async function handleRequest(request: Request) {
@@ -101,7 +90,7 @@ export async function handleRequest(request: Request) {
     try {
       update = await request.json() as Update;
     } catch (cause) {
-      throw new Error(`Invalid update payload: ${String(cause)}`);
+      throw new Error("Invalid update payload", { cause });
     }
     await handleUpdate(update);
   } else {
