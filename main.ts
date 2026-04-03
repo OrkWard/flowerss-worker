@@ -12,8 +12,6 @@ const appInjector = createInjector()
   .provideClass("source", SourceStore)
   .provideClass("subscribe", SubscribeStore);
 
-appInjector.injectFunction(handleCronjob);
-
 const kv = await Deno.openKv();
 initKv(kv);
 
