@@ -14,6 +14,7 @@
     "@telegraf/types": "npm:@telegraf/types",
     "@std/assert": "jsr:@std/assert@1",
     "fast-xml-parser": "npm:fast-xml-parser",
-    "ramda": "npm:ramda"
+    "ramda": "npm:ramda",
+    "typed-inject": "npm:typed-inject@^5.0.0"
   }
 }

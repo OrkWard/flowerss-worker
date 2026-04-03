@@ -3,8 +3,6 @@
  * - ["source_id_counter"]: number
  * - ["source", <id: number>]: Source
  */
-import { getKv } from "../service.ts";
-
 export interface Source {
   id: number;
   title: string;
@@ -14,119 +12,106 @@ export interface Source {
   update_at: number;
 }
 
-export async function createSource(
-  link: string,
-  title?: string,
-): Promise<Source> {
-  const kv = getKv();
-  const currentId = await kv.get<number>(["source_id_counter"]);
-  const nextId = (currentId.value ?? 0) + 1;
-  const atomicWriteResult = await kv.atomic().check({
-    key: ["source_id_counter"],
-    versionstamp: currentId.versionstamp,
-  }).set(["source_id_counter"], nextId).commit();
+export class SourceStore {
+  static inject = ["kv"] as const;
+  constructor(private kv: Deno.Kv) {}
 
-  if (!atomicWriteResult.ok) {
-    throw new Error(
-      `Error: atomic write fail for source ${link}${
-        title ? ` (${title})` : ""
-      }`,
-    );
-  }
+  async create(link: string, title?: string): Promise<Source> {
+    const currentId = await this.kv.get<number>(["source_id_counter"]);
+    const nextId = (currentId.value ?? 0) + 1;
+    const atomicWriteResult = await this.kv.atomic().check({
+      key: ["source_id_counter"],
+      versionstamp: currentId.versionstamp,
+    }).set(["source_id_counter"], nextId).commit();
 
-  const now = Date.now();
-  const source: Source = {
-    id: nextId,
-    title: title || "",
-    link,
-    error_count: 0,
-    create_at: now,
-    update_at: now,
-  };
-  await kv.set(["source", nextId], source);
-  return source;
-}
-
-export async function getSourceById(id: number): Promise<Source | null> {
-  const kv = getKv();
-  const source = await kv.get<Source>(["source", id]);
-  return source.value ?? null;
-}
-
-export async function getSourceByLink(link: string): Promise<Source | null> {
-  const kv = getKv();
-  const iter = kv.list<Source>({ prefix: ["source"] });
-  for await (const entry of iter) {
-    if (entry.value.link === link) {
-      return entry.value;
+    if (!atomicWriteResult.ok) {
+      throw new Error(
+        `Error: atomic write fail for source ${link}${
+          title ? ` (${title})` : ""
+        }`,
+      );
     }
-  }
-  return null;
-}
 
-export async function renewSource(
-  id: number,
-  updateAt: number,
-): Promise<Source | null> {
-  const kv = getKv();
-  const source = (await kv.get<Source>(["source", id])).value;
-  if (!source) {
+    const now = Date.now();
+    const source: Source = {
+      id: nextId,
+      title: title || "",
+      link,
+      error_count: 0,
+      create_at: now,
+      update_at: now,
+    };
+    await this.kv.set(["source", nextId], source);
+    return source;
+  }
+
+  async getById(id: number): Promise<Source | null> {
+    const source = await this.kv.get<Source>(["source", id]);
+    return source.value ?? null;
+  }
+
+  async getByLink(link: string): Promise<Source | null> {
+    const iter = this.kv.list<Source>({ prefix: ["source"] });
+    for await (const entry of iter) {
+      if (entry.value.link === link) {
+        return entry.value;
+      }
+    }
     return null;
   }
 
-  const newSource = { ...source, update_at: updateAt };
-  await kv.set(["source", id], newSource);
-  return newSource;
-}
+  async renew(id: number, updateAt: number): Promise<Source | null> {
+    const source = (await this.kv.get<Source>(["source", id])).value;
+    if (!source) {
+      return null;
+    }
 
-export async function incrementSourceErrorCount(
-  id: number,
-): Promise<Source | null> {
-  const kv = getKv();
-  const source = (await kv.get<Source>(["source", id])).value;
-  if (!source) {
-    return null;
+    const newSource = { ...source, update_at: updateAt };
+    await this.kv.set(["source", id], newSource);
+    return newSource;
   }
 
-  const newSource = {
-    ...source,
-    error_count: source.error_count + 1,
-    update_at: Date.now(),
-  };
-  await kv.set(["source", id], newSource);
-  return newSource;
-}
+  async incrementErrorCount(id: number): Promise<Source | null> {
+    const source = (await this.kv.get<Source>(["source", id])).value;
+    if (!source) {
+      return null;
+    }
 
-export async function resetSourceErrorCount(
-  id: number,
-): Promise<Source | null> {
-  const kv = getKv();
-  const source = (await kv.get<Source>(["source", id])).value;
-  if (!source) {
-    return null;
+    const newSource = {
+      ...source,
+      error_count: source.error_count + 1,
+      update_at: Date.now(),
+    };
+    await this.kv.set(["source", id], newSource);
+    return newSource;
   }
 
-  const newSource = {
-    ...source,
-    error_count: 0,
-    update_at: Date.now(),
-  };
-  await kv.set(["source", id], newSource);
-  return newSource;
-}
+  async resetErrorCount(id: number): Promise<Source | null> {
+    const source = (await this.kv.get<Source>(["source", id])).value;
+    if (!source) {
+      return null;
+    }
 
-export async function deleteSource(id: number): Promise<boolean> {
-  const kv = getKv();
-  await kv.delete(["source", id]);
-  return true;
-}
-
-export async function getAllSources(): Promise<Source[]> {
-  const kv = getKv();
-  const sources: Source[] = [];
-  const iter = kv.list<Source>({ prefix: ["source"] });
-  for await (const entry of iter) {
-    sources.push(entry.value);
+    const newSource = {
+      ...source,
+      error_count: 0,
+      update_at: Date.now(),
+    };
+    await this.kv.set(["source", id], newSource);
+    return newSource;
   }
-  return sources;
+
+  async delete(id: number): Promise<boolean> {
+    await this.kv.delete(["source", id]);
+    return true;
+  }
+
+  async getAll(): Promise<Source[]> {
+    const sources: Source[] = [];
+    const iter = this.kv.list<Source>({ prefix: ["source"] });
+    for await (const entry of iter) {
+      sources.push(entry.value);
+    }
+    return sources;
+  }
 }

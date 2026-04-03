@@ -2,7 +2,9 @@ import type { Update } from "@telegraf/types";
 import { callTelegram } from "./telegram/index.ts";
 import { textCommand } from "./command/text.ts";
 import { handleDocument } from "./command/document.ts";
-import { getUser } from "./model/user.ts";
+import { UserStore } from "./model/user.ts";
+import { SourceStore } from "./model/source.ts";
+import { SubscribeStore } from "./model/subscribe.ts";
 
 async function notifyHandlerError(chatId: number) {
   try {
@@ -15,12 +17,17 @@ async function notifyHandlerError(chatId: number) {
   }
 }
 
-async function handleUpdate(update: Update) {
+async function handleUpdate(
+  user: UserStore,
+  source: SourceStore,
+  subscribe: SubscribeStore,
+  update: Update,
+) {
   if (!("message" in update)) {
     return;
   }
 
-  const userExists = await getUser(update.message.chat.id);
+  const userExists = await user.get(update.message.chat.id);
   if (!userExists) {
     return;
   }
@@ -37,7 +44,7 @@ async function handleUpdate(update: Update) {
       );
 
       try {
-        await def.handler(update.message);
+        await def.handler({ source, subscribe, message: update.message });
       } catch (error) {
         await notifyHandlerError(update.message.chat.id);
         throw error;
@@ -48,7 +55,7 @@ async function handleUpdate(update: Update) {
 
   if ("document" in update.message) {
     try {
-      await handleDocument(update.message);
+      await handleDocument(source, subscribe, update.message);
     } catch (error) {
       await notifyHandlerError(update.message.chat.id);
       throw error;
@@ -76,7 +83,12 @@ async function setCommands() {
   });
 }
 
-export async function handleRequest(request: Request) {
+export async function handleRequest(
+  user: UserStore,
+  source: SourceStore,
+  subscribe: SubscribeStore,
+  request: Request,
+) {
   const url = new URL(request.url);
 
   if (url.pathname === "/set") {
@@ -92,10 +104,11 @@ export async function handleRequest(request: Request) {
     } catch (cause) {
       throw new Error("Invalid update payload", { cause });
     }
-    await handleUpdate(update);
+    await handleUpdate(user, source, subscribe, update);
   } else {
     return new Response("404 Not Found\nHeart from OrkWard", { status: 404 });
   }
 
   return new Response("ok");
 }
+handleRequest.inject = ["user", "source", "subscribe", "request"] as const;

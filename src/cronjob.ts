@@ -1,10 +1,10 @@
-import { getAllSources, renewSource } from "./model/source.ts";
 import { fetchRss } from "./rss/index.ts";
-import { getUsers } from "./model/user.ts";
-import { getSubscribesByUserId } from "./model/subscribe.ts";
 import { callTelegram, escapeMarkdownV2 } from "./telegram/index.ts";
 import type { FeedItem } from "./rss/parse.ts";
 import type { Source } from "./model/source.ts";
+import { UserStore } from "./model/user.ts";
+import { SourceStore } from "./model/source.ts";
+import { SubscribeStore } from "./model/subscribe.ts";
 
 function formatFeed(feedItem: FeedItem, sourceTitle: string) {
   const title = `*${escapeMarkdownV2(sourceTitle)}* ${
@@ -17,49 +17,54 @@ function formatFeed(feedItem: FeedItem, sourceTitle: string) {
   return [title, link].join("\n");
 }
 
-async function updateSources(): Promise<
-  readonly (readonly [Source, FeedItem[]])[]
-> {
-  const allSources = await getAllSources();
+async function updateSources(
+  source: SourceStore,
+): Promise<readonly (readonly [Source, FeedItem[]])[]> {
+  const allSources = await source.getAll();
 
   return await Promise.all(
-    allSources.map(async (source) => {
-      const feed = await fetchRss(source.link);
+    allSources.map(async (src) => {
+      const feed = await fetchRss(src.link);
 
-      if (feed.lastPub > source.update_at) {
-        await renewSource(source.id, feed.lastPub);
+      if (feed.lastPub > src.update_at) {
+        await source.renew(src.id, feed.lastPub);
       }
 
       return [
-        source,
-        feed.items.filter((item) => item.pubDate > source.update_at),
+        src,
+        feed.items.filter((item) => item.pubDate > src.update_at),
       ] as const;
     }),
   );
 }
 
-export async function handleCronjob() {
+export async function handleCronjob(
+  user: UserStore,
+  source: SourceStore,
+  subscribe: SubscribeStore,
+) {
   const [users, updatedSources] = await Promise.all([
-    getUsers(),
-    updateSources(),
+    user.getAll(),
+    updateSources(source),
   ]);
 
-  for (const user of users) {
-    const subscribes = await getSubscribesByUserId(user.id);
+  for (const u of users) {
+    const subscribes = await subscribe.getByUserId(u.id);
     const userFeeds = updatedSources
-      .filter(([source]) => subscribes.includes(source.id))
-      .flatMap(([source, feeds]) =>
-        feeds.map((feed) => [source, feed] as const)
+      .filter(([src]) => subscribes.includes(src.id))
+      .flatMap(([src, feeds]) =>
+        feeds.map((feed) => [src, feed] as const)
       );
 
     await Promise.all(
-      userFeeds.map(async ([source, feed]) => {
+      userFeeds.map(async ([src, feed]) => {
         await callTelegram("sendMessage", {
-          chat_id: user.id,
-          text: formatFeed(feed, source.title),
+          chat_id: u.id,
+          text: formatFeed(feed, src.title),
           parse_mode: "MarkdownV2",
         });
       }),
     );
   }
 }
+handleCronjob.inject = ["user", "source", "subscribe"] as const;

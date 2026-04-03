@@ -1,11 +1,7 @@
 import { get } from "./fetch.ts";
 import { type Feed, tryParseRssOrAtom } from "./parse.ts";
-import { createSource, getSourceByLink, type Source } from "../model/source.ts";
-import {
-  createSubscribe,
-  deleteSubscribe,
-  getSubscribesByUserId,
-} from "../model/subscribe.ts";
+import { SourceStore } from "../model/source.ts";
+import { SubscribeStore } from "../model/subscribe.ts";
 import { ParseError, UnsupportedFormatError } from "../errors.ts";
 
 export type AddRssSubscribeResult = {
@@ -13,7 +9,7 @@ export type AddRssSubscribeResult = {
     user_id: number;
     source_id: number;
   };
-  source: Source;
+  source: { id: number; title: string; link: string };
   feed: Feed;
 };
 
@@ -52,6 +48,8 @@ export async function fetchRss(link: string): Promise<Feed> {
 }
 
 export async function addRssSubscribe(
+  source: SourceStore,
+  subscribe: SubscribeStore,
   userId: number,
   link: string,
 ): Promise<AddRssSubscribeResult | null> {
@@ -59,30 +57,31 @@ export async function addRssSubscribe(
 
   const feed = await fetchRss(link);
 
-  let source = await getSourceByLink(link);
-  if (!source) {
-    source = await createSource(link, feed.title);
+  let src = await source.getByLink(link);
+  if (!src) {
+    src = await source.create(link, feed.title);
   }
 
-  const existingSubscribe = (await getSubscribesByUserId(userId)).includes(
-    source.id,
+  const existingSubscribe = (await subscribe.getByUserId(userId)).includes(
+    src.id,
   );
   if (existingSubscribe) {
     console.info(`already subscribed: ${link} for ${userId}`);
     return null;
   }
 
-  const subscribe = await createSubscribe(userId, source.id);
+  const sub = await subscribe.create(userId, src.id);
   return {
-    subscribe,
-    source,
+    subscribe: sub,
+    source: src,
     feed,
   };
 }
 
 export async function removeRssSubscribe(
+  subscribe: SubscribeStore,
   userId: number,
   sourceId: number,
 ): Promise<void> {
-  await deleteSubscribe(userId, sourceId);
+  await subscribe.delete(userId, sourceId);
 }
