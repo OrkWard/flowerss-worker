@@ -20,11 +20,12 @@ async function notifyHandlerError(chatId: number) {
 async function checkUser(user: UserStore, id: number, name: string) {
   const allUsers = await user.getAll();
   if (allUsers.length === 0) {
+    // first user become admin automatically
     await user.add({ first_name: name, id });
     return;
   }
-  const userExists = await user.get(id);
 
+  const userExists = await user.get(id);
   if (!userExists) {
     throw new Error(`Receive update but user not in admin list: ${id} ${name}`);
   }
