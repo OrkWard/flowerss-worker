@@ -8,6 +8,8 @@ const parser = new XMLParser({
   attributesGroupName: "@",
   attributeNamePrefix: "",
   ignoreAttributes: false,
+  processEntities: false,
+  htmlEntities: true,
 });
 
 export type Feed = {
