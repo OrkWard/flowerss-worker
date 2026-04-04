@@ -2,7 +2,11 @@ import type { Message } from "@telegraf/types";
 import { addRssSubscribe, removeRssSubscribe } from "../rss/index.ts";
 import type { SourceStore } from "../model/source.ts";
 import type { SubscribeStore } from "../model/subscribe.ts";
-import { callTelegram, escapeMarkdownV2 } from "../telegram/index.ts";
+import {
+  callTelegram,
+  escapeMarkdownV2,
+  sendDocument,
+} from "../telegram/index.ts";
 
 export type TextCommandHandler = ({
   source,
@@ -158,11 +162,38 @@ export const textCommand: readonly {
   {
     command: "export",
     description: "导出",
-    handler: async ({ message }) => {
-      await callTelegram("sendMessage", {
-        chat_id: message.chat.id,
-        text: "Not implemented yet",
-      });
+    handler: async ({ source, subscribe, message }) => {
+      const subscribes = await subscribe.getByUserId(message.chat.id);
+      if (!subscribes.length) {
+        await callTelegram("sendMessage", {
+          chat_id: message.chat.id,
+          text: "No subscriptions to export",
+        });
+        return;
+      }
+
+      const urls: string[] = [];
+      for (const sourceId of subscribes) {
+        const src = await source.getById(sourceId);
+        if (src) {
+          urls.push(src.link);
+        }
+      }
+
+      const content = urls.join("\n");
+      const blob = new Blob([content], { type: "text/plain" });
+      const date = new Date().toISOString().split("T")[0];
+      const filename = `rss-${date}.txt`;
+
+      try {
+        await sendDocument(message.chat.id, blob, filename);
+      } catch (error) {
+        console.error("Failed to send export document:", error);
+        await callTelegram("sendMessage", {
+          chat_id: message.chat.id,
+          text: "Failed to export subscriptions",
+        });
+      }
     },
   },
 ] as const;

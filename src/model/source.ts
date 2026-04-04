@@ -19,18 +19,6 @@ export class SourceStore {
   async create(link: string, title?: string): Promise<Source> {
     const currentId = await this.kv.get<number>(["source_id_counter"]);
     const nextId = (currentId.value ?? 0) + 1;
-    const atomicWriteResult = await this.kv.atomic().check({
-      key: ["source_id_counter"],
-      versionstamp: currentId.versionstamp,
-    }).set(["source_id_counter"], nextId).commit();
-
-    if (!atomicWriteResult.ok) {
-      throw new Error(
-        `Error: atomic write fail for source ${link}${
-          title ? ` (${title})` : ""
-        }`,
-      );
-    }
 
     const now = Date.now();
     const source: Source = {
@@ -41,8 +29,26 @@ export class SourceStore {
       create_at: now,
       update_at: now,
     };
-    await this.kv.set(["source", nextId], source);
-    return source;
+
+    // Atomic check-and-set: verify counter hasn't changed, then update counter and create source
+    const atomicWriteResult = await this.kv.atomic()
+      .check({
+        key: ["source_id_counter"],
+        versionstamp: currentId.versionstamp,
+      })
+      .set(["source_id_counter"], nextId)
+      .set(["source", nextId], source)
+      .commit();
+
+    if (atomicWriteResult.ok) {
+      return source;
+    }
+
+    throw new Error(
+      `Error: atomic write fail for source ${link}${
+        title ? ` (${title})` : ""
+      }`,
+    );
   }
 
   async getById(id: number): Promise<Source | null> {

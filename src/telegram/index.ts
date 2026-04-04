@@ -1,9 +1,5 @@
 import type { ApiError, ApiMethods, ApiResponse } from "@telegraf/types";
-import {
-  TgBodyParseError,
-  TgNetworkError,
-  TgResponseError,
-} from "../errors.ts";
+import ky from "ky";
 
 type Args<T extends keyof ApiMethods<File>> = ApiMethods<File>[T] extends
   (...args: infer P) => unknown ? P[0]
@@ -31,42 +27,9 @@ export async function callTelegram<T extends keyof ApiMethods<File>>(
   api: T,
   params: Args<T>,
 ): Promise<Response<T>> {
-  let response: globalThis.Response;
-  try {
-    response = await fetch(BASE_URL + api, {
-      method: "POST",
-      body: JSON.stringify(params),
-      headers: {
-        "Content-Type": "application/json",
-        Accept: "application/json",
-      },
-    });
-  } catch (cause) {
-    throw new TgNetworkError(api, { cause });
-  }
-
-  if (!response.ok) {
-    let body = "<unable to read response body>";
-    try {
-      body = await response.text();
-    } catch {
-      // Ignore body read errors and keep fallback message.
-    }
-
-    throw new TgResponseError(
-      response.status,
-      response.statusText,
-      body,
-      api,
-    );
-  }
-
-  let apiResponse: ApiResponse<Response<T>>;
-  try {
-    apiResponse = await response.json() as ApiResponse<Response<T>>;
-  } catch (cause) {
-    throw new TgBodyParseError(api, { cause });
-  }
+  const apiResponse = await ky.post(BASE_URL + api, {
+    json: params,
+  }).json<ApiResponse<Response<T>>>();
 
   if (apiResponse.ok === false) {
     throw new TgApiError(apiResponse);
@@ -76,34 +39,25 @@ export async function callTelegram<T extends keyof ApiMethods<File>>(
 }
 
 export async function getTelegramFile(filePath: string): Promise<Blob> {
-  const api = `file/${filePath}`;
-  let response: globalThis.Response;
-  try {
-    response = await fetch(FILE_BASE_URL + filePath);
-  } catch (cause) {
-    throw new TgNetworkError(api, { cause });
-  }
+  return await ky.get(FILE_BASE_URL + filePath).blob();
+}
 
-  if (!response.ok) {
-    let body = "<unable to read response body>";
-    try {
-      body = await response.text();
-    } catch {
-      // Ignore body read errors and keep fallback message.
-    }
+export async function sendDocument(
+  chatId: number,
+  document: Blob,
+  filename: string,
+): Promise<void> {
+  const formData = new FormData();
+  formData.append("chat_id", String(chatId));
+  formData.append("document", document, filename);
 
-    throw new TgResponseError(
-      response.status,
-      response.statusText,
-      body,
-      api,
-    );
-  }
+  const response = await ky.post(BASE_URL + "sendDocument", {
+    // @ts-expect-error -- Deno type mismatch
+    body: formData,
+  }).json<ApiResponse<unknown>>();
 
-  try {
-    return await response.blob();
-  } catch (cause) {
-    throw new TgBodyParseError(api, { cause });
+  if (response.ok === false) {
+    throw new TgApiError(response);
   }
 }
 

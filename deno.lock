@@ -1,18 +1,20 @@
 {
   "version": "5",
   "specifiers": {
-    "jsr:@std/assert@1": "1.0.15",
+    "jsr:@std/assert@^1.0.19": "1.0.19",
     "jsr:@std/dotenv@*": "0.225.5",
     "jsr:@std/internal@^1.0.12": "1.0.12",
     "npm:@telegraf/types@*": "9.2.1",
+    "npm:@telegraf/types@9.2.1": "9.2.1",
     "npm:@types/ramda@*": "0.31.1",
-    "npm:fast-xml-parser@*": "5.3.1",
-    "npm:ramda@*": "0.32.0",
+    "npm:fast-xml-parser@5.5.10": "5.5.10",
+    "npm:ky@1.14.3": "1.14.3",
+    "npm:ramda@0.32.0": "0.32.0",
     "npm:typed-inject@5": "5.0.0"
   },
   "jsr": {
-    "@std/assert@1.0.15": {
-      "integrity": "d64018e951dbdfab9777335ecdb000c0b4e3df036984083be219ce5941e4703b",
+    "@std/assert@1.0.19": {
+      "integrity": "eaada96ee120cb980bc47e040f82814d786fe8162ecc53c91d8df60b8755991e",
       "dependencies": [
         "jsr:@std/internal"
       ]
@@ -34,18 +36,32 @@
         "types-ramda"
       ]
     },
-    "fast-xml-parser@5.3.1": {
-      "integrity": "sha512-jbNkWiv2Ec1A7wuuxk0br0d0aTMUtQ4IkL+l/i1r9PRf6pLXjDgsBsWwO+UyczmQlnehi4Tbc8/KIvxGQe+I/A==",
+    "fast-xml-builder@1.1.4": {
+      "integrity": "sha512-f2jhpN4Eccy0/Uz9csxh3Nu6q4ErKxf0XIsasomfOihuSUa3/xw6w8dnOtCDgEItQFJG8KyXPzQXzcODDrrbOg==",
       "dependencies": [
+        "path-expression-matcher"
+      ]
+    },
+    "fast-xml-parser@5.5.10": {
+      "integrity": "sha512-go2J2xODMc32hT+4Xr/bBGXMaIoiCwrwp2mMtAvKyvEFW6S/v5Gn2pBmE4nvbwNjGhpcAiOwEv7R6/GZ6XRa9w==",
+      "dependencies": [
+        "fast-xml-builder",
+        "path-expression-matcher",
         "strnum"
       ],
       "bin": true
     },
+    "ky@1.14.3": {
+      "integrity": "sha512-9zy9lkjac+TR1c2tG+mkNSVlyOpInnWdSMiue4F+kq8TwJSgv6o8jhLRg8Ho6SnZ9wOYUq/yozts9qQCfk7bIw=="
+    },
+    "path-expression-matcher@1.2.1": {
+      "integrity": "sha512-d7gQQmLvAKXKXE2GeP9apIGbMYKz88zWdsn/BN2HRWVQsDFdUY36WSLTY0Jvd4HWi7Fb30gQ62oAOzdgJA6fZw=="
+    },
     "ramda@0.32.0": {
       "integrity": "sha512-GQWAHhxhxWBWA8oIBr1XahFVjQ9Fic6MK9ikijfd4TZHfE2+urfk+irVlR5VOn48uwMgM+loRRBJd6Yjsbc0zQ=="
     },
-    "strnum@2.1.1": {
-      "integrity": "sha512-7ZvoFTiCnGxBtDqJ//Cu6fWtZtc7Y3x+QOirG15wztbdngGSkht27o2pyGWrVy0b4WAy3jbKmnoK6g5VlVNUUw=="
+    "strnum@2.2.2": {
+      "integrity": "sha512-DnR90I+jtXNSTXWdwrEy9FakW7UX+qUZg28gj5fk2vxxl7uS/3bpI4fjFYVmdK9etptYBPNkpahuQnEwhwECqA=="
     },
     "ts-toolbelt@9.6.0": {
       "integrity": "sha512-nsZd8ZeNUzukXPlJmTBwUAuABDe/9qtVDelJeT/qW0ow3ZS3BsQJtNkan1802aM9Uf68/Y8ljw86Hu0h5IUW3w=="
@@ -62,11 +78,13 @@
   },
   "workspace": {
     "dependencies": [
-      "jsr:@std/assert@1",
+      "jsr:@std/assert@^1.0.19",
       "npm:@telegraf/types@*",
+      "npm:@telegraf/types@9.2.1",
       "npm:@types/ramda@*",
-      "npm:fast-xml-parser@*",
-      "npm:ramda@*",
+      "npm:fast-xml-parser@5.5.10",
+      "npm:ky@1.14.3",
+      "npm:ramda@0.32.0",
       "npm:typed-inject@5"
     ]
   }

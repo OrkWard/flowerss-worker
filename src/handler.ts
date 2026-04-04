@@ -20,7 +20,7 @@ async function notifyHandlerError(chatId: number) {
 async function checkUser(user: UserStore, id: number, name: string) {
   const allUsers = await user.getAll();
   if (allUsers.length === 0) {
-    user.add({ first_name: name, id });
+    await user.add({ first_name: name, id });
     return;
   }
   const userExists = await user.get(id);

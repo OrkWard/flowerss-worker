@@ -1,6 +1,5 @@
 import { handleRequest } from "./src/handler.ts";
 import { handleCronjob } from "./src/cronjob.ts";
-import { initKv } from "./src/service.ts";
 import { createInjector } from "typed-inject";
 import { UserStore } from "./src/model/user.ts";
 import { SourceStore } from "./src/model/source.ts";
@@ -11,9 +10,6 @@ const appInjector = createInjector()
   .provideClass("user", UserStore)
   .provideClass("source", SourceStore)
   .provideClass("subscribe", SubscribeStore);
-
-const kv = await Deno.openKv();
-initKv(kv);
 
 Deno.serve({ port: 8787, hostname: "localhost" }, async (req) => {
   try {

@@ -52,9 +52,7 @@ export async function handleCronjob(
     const subscribes = await subscribe.getByUserId(u.id);
     const userFeeds = updatedSources
       .filter(([src]) => subscribes.includes(src.id))
-      .flatMap(([src, feeds]) =>
-        feeds.map((feed) => [src, feed] as const)
-      );
+      .flatMap(([src, feeds]) => feeds.map((feed) => [src, feed] as const));
 
     await Promise.all(
       userFeeds.map(async ([src, feed]) => {

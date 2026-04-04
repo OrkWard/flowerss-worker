@@ -11,19 +11,24 @@ async function addSubscribeWithRetry(
   userId: number,
   subscribeLink: string,
   times = 3,
-) {
+): Promise<{ status: "added" | "skipped" | "failed"; error?: unknown }> {
   let lastError: unknown;
 
   for (let attempt = 0; attempt < times; attempt += 1) {
     try {
-      await addRssSubscribe(source, subscribe, userId, subscribeLink.trim());
-      return;
+      const result = await addRssSubscribe(
+        source,
+        subscribe,
+        userId,
+        subscribeLink.trim(),
+      );
+      return { status: result === null ? "skipped" : "added" };
     } catch (error) {
       lastError = error;
     }
   }
 
-  throw lastError;
+  return { status: "failed", error: lastError };
 }
 
 export async function handleDocument(
@@ -55,17 +60,38 @@ export async function handleDocument(
     (values: string[]) => values.map((s) => s.trim()),
     (values: string[]) => values.filter(Boolean),
   )(text);
-  console.info("Parsed subscribes", { subscribes });
+  console.info("Parsed subscribes", { count: subscribes.length });
 
-  await Promise.all(
-    subscribes.map((s: string) => {
-      console.debug(`Adding subscription: ${s}`);
-      return addSubscribeWithRetry(source, subscribe, message.chat.id, s);
-    }),
-  );
+  // Process sequentially to avoid race conditions on source_id_counter
+  let added = 0;
+  let skipped = 0;
+  let failed = 0;
+
+  for (const s of subscribes) {
+    console.debug(`Processing subscription: ${s}`);
+    const result = await addSubscribeWithRetry(
+      source,
+      subscribe,
+      message.chat.id,
+      s,
+    );
+
+    if (result.status === "added") {
+      added++;
+    } else if (result.status === "skipped") {
+      skipped++;
+    } else {
+      failed++;
+      console.error(`Failed to add subscription: ${s}`, result.error);
+    }
+  }
+
+  const summary =
+    `Import complete:\n• Added: ${added}\n• Skipped (already exists): ${skipped}\n• Failed: ${failed}`;
+  console.info(summary.replace(/\n/g, ", "));
 
   await callTelegram("sendMessage", {
     chat_id: message.chat.id,
-    text: "Success",
+    text: summary,
   });
 }
