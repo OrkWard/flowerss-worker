@@ -17,6 +17,19 @@ async function notifyHandlerError(chatId: number) {
   }
 }
 
+async function checkUser(user: UserStore, id: number, name: string) {
+  const allUsers = await user.getAll();
+  if (allUsers.length === 0) {
+    user.add({ first_name: name, id });
+    return;
+  }
+  const userExists = await user.get(id);
+
+  if (!userExists) {
+    throw new Error(`Receive update but user not in admin list: ${id} ${name}`);
+  }
+}
+
 async function handleUpdate(
   user: UserStore,
   source: SourceStore,
@@ -26,11 +39,11 @@ async function handleUpdate(
   if (!("message" in update)) {
     return;
   }
-
-  const userExists = await user.get(update.message.chat.id);
-  if (!userExists) {
-    return;
-  }
+  await checkUser(
+    user,
+    update.message.chat.id,
+    update.message.chat.username || "no name",
+  );
 
   if ("text" in update.message) {
     for (const def of textCommand) {
